@@ -1,18 +1,20 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  BellIcon, 
-  LogOutIcon, 
-  Settings, 
+import {
+  BellIcon,
+  LogOutIcon,
+  Settings,
   UserIcon,
   HomeIcon,
   Building2Icon,
@@ -20,15 +22,28 @@ import {
   MenuIcon
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
+
 
 export function Navbar() {
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ redirect: false })
+      router.push('/auth/login') // Redirect to sign in page after logout
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl dark:bg-zinc-950/80">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="text-xl font-bold bg-gradient-to-r from-sky-600 to-sky-400 bg-clip-text text-transparent"
           >
             PropertyHub
@@ -43,21 +58,21 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <nav className="flex flex-col gap-4">
-                <Link 
-                  href="/dashboard" 
+                <Link
+                  href="/dashboard"
                   className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
                 >
                   <HomeIcon className="h-4 w-4" />
                   Dashboard
                 </Link>
-                <Link 
+                <Link
                   href="/dashboard/properties"
                   className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
                 >
                   <Building2Icon className="h-4 w-4" />
                   Properties
                 </Link>
-                <Link 
+                <Link
                   href="/dashboard/messages"
                   className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
                 >
@@ -110,8 +125,8 @@ export function Navbar() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="relative h-8 w-8 rounded-full ring-2 ring-zinc-100 dark:ring-zinc-800"
                 >
                   <Avatar className="h-8 w-8">
@@ -137,7 +152,10 @@ export function Navbar() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem
+                  className="text-red-600 cursor-pointer"
+                  onClick={handleLogout}
+                >
                   <LogOutIcon className="mr-2 h-4 w-4" />
                   <span>Logout</span>
                 </DropdownMenuItem>

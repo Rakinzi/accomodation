@@ -24,6 +24,7 @@ import {
   CheckCircle2Icon
 } from "lucide-react"
 
+
 export default function PropertyDetailPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -132,7 +133,7 @@ export default function PropertyDetailPage() {
           {/* Main Content */}
           <Card className="lg:col-span-2 overflow-hidden border-none shadow-xl">
             <div className="relative aspect-[16/9]">
-              <Carousel images={property.images} />
+            <Carousel images={property.images} interval={3000} />
             </div>
 
             <div className="p-8 space-y-8">

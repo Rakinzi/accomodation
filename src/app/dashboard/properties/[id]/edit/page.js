@@ -11,9 +11,16 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
 import { ImageUpload } from "@/components/dashboard/ImageUpload"
-import { Command, CommandEmpty,CommandInput, CommandItem,CommandList } from "@/components/dashboard/Command"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Form,
   FormControl,
@@ -22,7 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { X, ArrowLeft } from "lucide-react"
+import { X, ArrowLeft, PlusCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
 const formSchema = z.object({
@@ -32,6 +39,11 @@ const formSchema = z.object({
   bathrooms: z.string().min(1, "Number of bathrooms is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
+  sharing: z.boolean().default(false),
+  gender: z.enum(["ANY", "MALE", "FEMALE"]).default("ANY"),
+  religion: z.enum(["ANY", "CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "OTHER"]).default("ANY"),
+  maxOccupants: z.string().optional().transform(val => val || "1"),
+  status: z.enum(["AVAILABLE", "OCCUPIED", "MAINTENANCE"]).default("AVAILABLE")
 })
 
 const amenitiesSuggestions = [
@@ -47,8 +59,7 @@ export default function EditPropertyPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [images, setImages] = useState([])
-  const [amenityInput, setAmenityInput] = useState("")
-  const [isCommandOpen, setIsCommandOpen] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -59,6 +70,11 @@ export default function EditPropertyPage() {
       bathrooms: "",
       description: "",
       amenities: [],
+      sharing: false,
+      gender: "ANY",
+      religion: "ANY",
+      maxOccupants: "1",
+      status: "AVAILABLE"
     },
   })
 
@@ -68,7 +84,7 @@ export default function EditPropertyPage() {
         const response = await fetch(`/api/properties/${id}`)
         if (!response.ok) throw new Error('Failed to fetch property')
         const data = await response.json()
-        
+
         form.reset({
           price: data.price.toString(),
           location: data.location,
@@ -76,8 +92,14 @@ export default function EditPropertyPage() {
           bathrooms: data.bathrooms.toString(),
           description: data.description,
           amenities: JSON.parse(data.amenities),
+          sharing: data.sharing,
+          gender: data.gender || "ANY",
+          religion: data.religion || "ANY",
+          maxOccupants: data.maxOccupants?.toString() || "1",
+          status: data.status || "AVAILABLE"
         })
-        
+
+        setSharing(data.sharing)
         setImages(data.images)
       } catch (error) {
         toast.error("Failed to load property")
@@ -90,27 +112,24 @@ export default function EditPropertyPage() {
     if (id) fetchProperty()
   }, [id, form, router])
 
-  const filteredAmenities = amenitiesSuggestions.filter(amenity => {
-    const currentAmenities = form.getValues("amenities") || []
-    return !currentAmenities.includes(amenity) &&
-      amenity.toLowerCase().includes(amenityInput.toLowerCase())
-  })
-
   const onSubmit = async (data) => {
     try {
       setSubmitting(true)
-      console.log("ID",id)
       const response = await fetch(`/api/properties/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
-          images: images.map(image => ({ url: image.url }))
+          images: images.map(image => ({ url: image.url })),
+          sharing: data.sharing,
+          gender: data.gender,
+          religion: data.religion,
+          maxOccupants: data.maxOccupants
         }),
       })
 
       if (!response.ok) throw new Error()
-      
+
       toast.success("Property updated successfully")
       router.push(`/dashboard/properties/${id}`)
     } catch (error) {
@@ -150,9 +169,9 @@ export default function EditPropertyPage() {
                 {/* Image Upload */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold">Property Images</h2>
-                  <ImageUpload 
-                    value={images} 
-                    onChange={setImages} 
+                  <ImageUpload
+                    value={images}
+                    onChange={setImages}
                     maxFiles={5}
                   />
                 </div>
@@ -160,8 +179,183 @@ export default function EditPropertyPage() {
                 {/* Basic Details */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold">Basic Details</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* ... keep existing FormFields for price, location, etc ... */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="price"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price per Month</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0.00" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="location"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter location" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bedrooms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bedrooms</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="bathrooms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bathrooms</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="AVAILABLE">Available</SelectItem>
+                              <SelectItem value="OCCUPIED">Occupied</SelectItem>
+                              <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Sharing Preferences */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Sharing Preferences</h2>
+                  <div className="grid gap-6">
+                    <FormField
+                      control={form.control}
+                      name="sharing"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                          <div>
+                            <FormLabel className="text-base">Shared Accommodation</FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Enable if this property is available for sharing
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={(checked) => {
+                                field.onChange(checked)
+                                setSharing(checked)
+                              }}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {sharing && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="maxOccupants"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Maximum Occupants</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="1" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="gender"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Preferred Gender</FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="ANY">Any</SelectItem>
+                                  <SelectItem value="MALE">Male</SelectItem>
+                                  <SelectItem value="FEMALE">Female</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="religion"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Preferred Religion</FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="ANY">Any</SelectItem>
+                                  <SelectItem value="CHRISTIAN">Christian</SelectItem>
+                                  <SelectItem value="MUSLIM">Muslim</SelectItem>
+                                  <SelectItem value="HINDU">Hindu</SelectItem>
+                                  <SelectItem value="BUDDHIST">Buddhist</SelectItem>
+                                  <SelectItem value="JEWISH">Jewish</SelectItem>
+                                  <SelectItem value="OTHER">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -198,9 +392,27 @@ export default function EditPropertyPage() {
                                 </Badge>
                               ))}
                             </div>
-                            <Command className="border rounded-md">
-                              {/* ... keep existing Command components ... */}
-                            </Command>
+                            <div className="flex flex-wrap gap-2">
+                              {amenitiesSuggestions.map((amenity) => (
+                                <Button
+                                  key={amenity}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const current = field.value || []
+                                    if (!current.includes(amenity)) {
+                                      field.onChange([...current, amenity])
+                                    }
+                                  }}
+                                  className="flex items-center gap-1"
+                                  disabled={field.value?.includes(amenity)}
+                                >
+                                  <PlusCircle className="h-4 w-4" />
+                                  {amenity}
+                                </Button>
+                              ))}
+                            </div>
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -218,11 +430,7 @@ export default function EditPropertyPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Describe your property..." 
-                            className="h-32 resize-none" 
-                            {...field} 
-                          />
+                          <Textarea {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -230,28 +438,28 @@ export default function EditPropertyPage() {
                   />
                 </div>
               </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-end gap-4 pt-4 border-t">
+                 {/* Submit Button Section */}
+                 <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => router.back()}
+                  className="w-32"
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={submitting}
-                  className="bg-sky-500 hover:bg-sky-600"
+                  className="w-32 bg-sky-500 hover:bg-sky-600"
                 >
                   {submitting ? (
                     <>
                       <LoadingSpinner className="mr-2 h-4 w-4" />
-                      Updating...
+                      Saving...
                     </>
                   ) : (
-                    'Update Property'
+                    'Save Changes'
                   )}
                 </Button>
               </div>
