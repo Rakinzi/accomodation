@@ -1,23 +1,42 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { 
-  BookmarkIcon, 
-  MessageSquareIcon, 
-  BellIcon, 
-  UserIcon, 
-  LogOutIcon 
+import {
+  BookmarkIcon,
+  MessageSquareIcon,
+  BellIcon,
+  UserIcon,
+  LogOutIcon
 } from "lucide-react"
+import { signOut } from "next-auth/react"
+import { useState } from "react"
 
 export function StudentMainNav() {
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true)
+      await signOut({
+        callbackUrl: "/",
+        redirect: true
+      })
+    } catch (error) {
+      toast.error("Failed to sign out")
+      setIsSigningOut(false)
+    }
+  }
+
   return (
     <nav className="flex items-center justify-between h-20 px-4">
       {/* Logo and Primary Navigation */}
@@ -25,16 +44,16 @@ export function StudentMainNav() {
         <Link href="/student-dashboard" className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-sky-400 bg-clip-text text-transparent">
           StudentHousing
         </Link>
-        
+
         <div className="hidden md:flex items-center gap-6">
-          <Link 
+          <Link
             href="/student-dashboard/saved"
             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-sky-600 transition-colors"
           >
             <BookmarkIcon className="w-4 h-4" />
             Saved
           </Link>
-          <Link 
+          <Link
             href="/student-dashboard/messages"
             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-sky-600 transition-colors"
           >
@@ -43,7 +62,7 @@ export function StudentMainNav() {
           </Link>
         </div>
       </div>
-      
+
       {/* User Actions */}
       <div className="flex items-center gap-6">
         {/* Notifications */}
@@ -74,9 +93,13 @@ export function StudentMainNav() {
               <UserIcon className="w-4 h-4 mr-2" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem
+              className="text-red-600 cursor-pointer"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            >
               <LogOutIcon className="w-4 h-4 mr-2" />
-              Sign out
+              {isSigningOut ? "Signing out..." : "Sign out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,6 +1,10 @@
+"use client"
+
+import { useState } from "react"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { 
   Select, 
   SelectTrigger, 
@@ -10,12 +14,30 @@ import {
 } from "@/components/ui/select"
 import { 
   SearchIcon, 
-  HomeIcon, 
-  UsersIcon, 
-  FilterIcon 
+  FilterIcon,
+  Users2Icon
 } from "lucide-react"
 
-export function FilterBar() {
+export function FilterBar({ onFiltersChange }) {
+  const [location, setLocation] = useState("")
+  const [priceRange, setPriceRange] = useState([0, 5000])
+  const [sharing, setSharing] = useState(false)
+  const [gender, setGender] = useState("ANY")
+  const [religion, setReligion] = useState("ANY")
+
+  const formatPrice = (value) => `$${value.toLocaleString()}`
+
+  const handleApplyFilters = () => {
+    onFiltersChange({
+      location: location || undefined,
+      minPrice: priceRange[0] || undefined,
+      maxPrice: priceRange[1] || undefined,
+      sharing: sharing || undefined,
+      gender: gender !== "ANY" ? gender : undefined,
+      religion: religion !== "ANY" ? religion : undefined
+    })
+  }
+
   return (
     <div className="bg-white/50 backdrop-blur-lg border rounded-xl p-6 shadow-lg">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -27,65 +49,85 @@ export function FilterBar() {
             <Input 
               placeholder="Search city or area" 
               className="pl-9 bg-white"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
             />
           </div>
         </div>
 
         {/* Price Range */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Price Range</label>
+          <label className="text-sm font-medium text-gray-700">
+            Price Range (Monthly)
+          </label>
           <div className="pt-2">
             <Slider
-              defaultValue={[0, 50000]}
-              max={50000}
-              step={1000}
+              value={priceRange}
+              onValueChange={setPriceRange}
+              min={0}
+              max={5000}
+              step={10}
               className="mt-2"
             />
             <div className="flex justify-between mt-1 text-xs text-gray-500">
-              <span>R0</span>
-              <span>R50,000</span>
+              <span>{formatPrice(priceRange[0])}</span>
+              <span>{formatPrice(priceRange[1])}</span>
             </div>
           </div>
         </div>
 
-        {/* Property Type */}
+        {/* Gender Preference */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Property Type</label>
-          <Select>
+          <label className="text-sm font-medium text-gray-700">Gender Preference</label>
+          <Select value={gender} onValueChange={setGender}>
             <SelectTrigger className="bg-white">
-              <SelectValue placeholder="Select type" />
+              <SelectValue placeholder="Select gender" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="apartment">
-                <span className="flex items-center gap-2">
-                  <HomeIcon className="w-4 h-4" />
-                  Apartment
-                </span>
-              </SelectItem>
-              <SelectItem value="house">House</SelectItem>
-              <SelectItem value="shared">Shared Room</SelectItem>
+              <SelectItem value="ANY">Any Gender</SelectItem>
+              <SelectItem value="MALE">Male Only</SelectItem>
+              <SelectItem value="FEMALE">Female Only</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* Additional Filters */}
+        {/* Religion Preference */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Room Sharing</label>
-          <Select>
+          <label className="text-sm font-medium text-gray-700">Religion Preference</label>
+          <Select value={religion} onValueChange={setReligion}>
             <SelectTrigger className="bg-white">
-              <SelectValue placeholder="Preferences" />
+              <SelectValue placeholder="Select religion" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              <SelectItem value="male">Male Only</SelectItem>
-              <SelectItem value="female">Female Only</SelectItem>
+              <SelectItem value="ANY">Any Religion</SelectItem>
+              <SelectItem value="CHRISTIAN">Christian</SelectItem>
+              <SelectItem value="MUSLIM">Muslim</SelectItem>
+              <SelectItem value="HINDU">Hindu</SelectItem>
+              <SelectItem value="BUDDHIST">Buddhist</SelectItem>
+              <SelectItem value="JEWISH">Jewish</SelectItem>
+              <SelectItem value="OTHER">Other</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
+      {/* Sharing Switch */}
+      <div className="flex items-center justify-between mt-6 pb-6 border-b">
+        <div className="flex items-center gap-2">
+          <Users2Icon className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-700">Show Shared Accommodations</span>
+        </div>
+        <Switch 
+          checked={sharing}
+          onCheckedChange={setSharing}
+        />
+      </div>
+
       <div className="flex justify-end mt-6">
-        <Button className="bg-sky-500 hover:bg-sky-600">
+        <Button 
+          className="bg-sky-500 hover:bg-sky-600"
+          onClick={handleApplyFilters}
+        >
           <FilterIcon className="w-4 h-4 mr-2" />
           Apply Filters
         </Button>

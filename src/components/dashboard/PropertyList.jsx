@@ -15,6 +15,7 @@ import Image from "next/image"
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { PropertyCard } from "./PropertyCard"
+import { PropertySkeleton } from "./PropertySkeleton"
 
 export function PropertyList() {
   const { data: session } = useSession()
@@ -28,11 +29,11 @@ export function PropertyList() {
     try {
       setIsLoading(true)
       const response = await fetch(`/api/properties?ownerId=${session.user.id}`)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch properties')
       }
-      
+
       const data = await response.json()
       setProperties(data)
       setError(null)
@@ -67,8 +68,10 @@ export function PropertyList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <PropertySkeleton key={index} />
+        ))}
       </div>
     )
   }
@@ -77,7 +80,7 @@ export function PropertyList() {
     return (
       <div className="text-center py-10 text-red-500">
         <p>{error}</p>
-        <Button 
+        <Button
           onClick={fetchProperties}
           variant="outline"
           className="mt-4"

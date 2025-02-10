@@ -6,14 +6,17 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   
   async function onSubmit(e) {
     e.preventDefault()
+    setIsLoading(true)
     const formData = new FormData(e.currentTarget)
 
     try {
@@ -25,6 +28,7 @@ export default function LoginPage() {
 
       if (res?.error) {
         setError("Invalid credentials")
+        setIsLoading(false)
         return
       }
 
@@ -32,6 +36,7 @@ export default function LoginPage() {
       router.refresh()
     } catch (error) {
       setError("Something went wrong")
+      setIsLoading(false)
     }
   }
 
@@ -54,6 +59,7 @@ export default function LoginPage() {
               type="email"
               required
               placeholder="Enter your email"
+              disabled={isLoading}
             />
           </div>
 
@@ -65,6 +71,7 @@ export default function LoginPage() {
               type="password"
               required
               placeholder="Enter your password"
+              disabled={isLoading}
             />
           </div>
 
@@ -72,8 +79,19 @@ export default function LoginPage() {
             <p className="text-sm text-red-500">{error}</p>
           )}
 
-          <Button type="submit" className="w-full">
-            Sign in
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </form>
 

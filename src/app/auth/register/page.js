@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import {
   Select,
   SelectContent,
@@ -17,6 +19,7 @@ import Link from "next/link"
 export default function RegisterPage() {
   const router = useRouter()
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const [userType, setUserType] = useState("STUDENT")
   const [showStudentFields, setShowStudentFields] = useState(true)
 
@@ -27,6 +30,8 @@ export default function RegisterPage() {
 
   async function onSubmit(e) {
     e.preventDefault()
+    setIsLoading(true)
+    setError("")
     const formData = new FormData(e.currentTarget)
 
     try {
@@ -47,15 +52,25 @@ export default function RegisterPage() {
         body: JSON.stringify(userData)
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const data = await res.json()
         setError(data.message)
+        toast.error(data.message || "Registration failed")
         return
       }
 
-      router.push("/auth/login")
+      toast.success("Registration successful! Please sign in to continue")
+      
+      setTimeout(() => {
+        router.push("/auth/login")
+      }, 2000)
+
     } catch (error) {
       setError("Something went wrong")
+      toast.error("Failed to create account")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -70,7 +85,6 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Basic Fields in Grid Layout */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -79,6 +93,7 @@ export default function RegisterPage() {
                 name="name"
                 required
                 placeholder="Enter your name"
+                disabled={isLoading}
               />
             </div>
 
@@ -90,6 +105,7 @@ export default function RegisterPage() {
                 type="email"
                 required
                 placeholder="Enter your email"
+                disabled={isLoading}
               />
             </div>
 
@@ -101,12 +117,17 @@ export default function RegisterPage() {
                 type="password"
                 required
                 placeholder="Create a password"
+                disabled={isLoading}
               />
             </div>
 
             <div className="space-y-2">
               <Label>Account Type</Label>
-              <Select value={userType} onValueChange={handleUserTypeChange}>
+              <Select 
+                value={userType} 
+                onValueChange={handleUserTypeChange}
+                disabled={isLoading}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -117,12 +138,15 @@ export default function RegisterPage() {
               </Select>
             </div>
 
-            {/* Student-specific fields */}
             {showStudentFields && (
               <>
                 <div className="space-y-2">
                   <Label>Gender</Label>
-                  <Select name="gender" defaultValue="ANY">
+                  <Select 
+                    name="gender" 
+                    defaultValue="ANY"
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -135,7 +159,11 @@ export default function RegisterPage() {
 
                 <div className="space-y-2">
                   <Label>Religion</Label>
-                  <Select name="religion" defaultValue="ANY">
+                  <Select 
+                    name="religion" 
+                    defaultValue="ANY"
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -157,8 +185,19 @@ export default function RegisterPage() {
             <p className="text-sm text-red-500">{error}</p>
           )}
 
-          <Button type="submit" className="w-full">
-            Sign up
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              "Sign up"
+            )}
           </Button>
         </form>
 
