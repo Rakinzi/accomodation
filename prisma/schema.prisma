@@ -22,8 +22,58 @@ model User {
   userType      UserType  @default(STUDENT)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  properties    Property[]
+  messages      Message[]
 
   @@map("users")
+}
+
+model Property {
+  id          String    @id @default(cuid())
+  price       Float
+  location    String
+  bedrooms    Int
+  bathrooms   Int
+  description String    @db.Text
+  amenities   String    @db.Text // Changed from String[] to String to store JSON
+  status      PropertyStatus @default(AVAILABLE)
+  images      Image[]
+  owner       User      @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  messages    Message[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("properties")
+}
+
+model Image {
+  id         String   @id @default(cuid())
+  url        String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  @@map("images")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String   @db.Text
+  sender     User     @relation(fields: [senderId], references: [id])
+  senderId   String
+  property   Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("messages")
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  RENTED
+  UNDER_MAINTENANCE
 }
 
 enum UserType {

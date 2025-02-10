@@ -1,4 +1,4 @@
-import { StudentMainNav } from "@/components/ui/student-dashboard/StudentNav";
+import { StudentMainNav } from "@/components/student-dashboard/StudentNav";
 
 export default function StudentDashboardLayout({ children }) {
     return (

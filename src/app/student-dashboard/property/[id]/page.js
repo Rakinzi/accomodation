@@ -1,6 +1,6 @@
 "use client"
 
-import { PropertyDetails } from "@/components/ui/student-dashboard/property/PropertyDetails"
+import { PropertyDetails } from "@/components/student-dashboard/property/PropertyDetails"
 import { use } from "react"
 
 export default function PropertyPage({ params }) {

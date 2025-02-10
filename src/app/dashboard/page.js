@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react"
 import { redirect } from "next/navigation"
-import { LandlordDashboard } from "@/components/ui/dashboard/LandlordDashboard"
+import { LandlordDashboard } from "@/components/dashboard/LandlordDashboard"
+import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
 
 export default function DashboardPage() {
   const { data: session, status } = useSession({
@@ -13,11 +14,7 @@ export default function DashboardPage() {
   })
 
   if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">Loading...</div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (session?.user?.userType !== 'LANDLORD') {

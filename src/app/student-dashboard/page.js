@@ -1,8 +1,10 @@
 "use client"
 
-import { FilterBar } from "@/components/ui/student-dashboard/FilterBar"
-import { PropertyGrid } from "@/components/ui/student-dashboard/PropertyGrid"
-
+import { useSession } from "next-auth/react"
+import { redirect } from "next/navigation"
+import { FilterBar } from "@/components/student-dashboard/FilterBar"
+import { PropertyGrid } from "@/components/student-dashboard/PropertyGrid"
+import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
 
 export default function StudentDashboard() {
 
@@ -14,11 +16,7 @@ export default function StudentDashboard() {
   })
 
   if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">Loading...</div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (session?.user?.userType !== 'STUDENT') {
