@@ -5,35 +5,55 @@ import { NextResponse } from "next/server"
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { email, password, name, userType } = body
+    const { email, password, name, userType, gender, religion } = body
 
-    if (!email || !password) {
-      return new NextResponse("Missing fields", { status: 400 })
+    // Validation
+    if (!email || !password || !name || !userType) {
+      return NextResponse.json(
+        { message: "Missing required fields" },
+        { status: 400 }
+      )
     }
 
+    // Check if user exists
     const exist = await prisma.user.findUnique({
-      where: {
-        email
-      }
+      where: { email }
     })
 
     if (exist) {
-      return new NextResponse("User already exists", { status: 400 })
+      return NextResponse.json(
+        { message: "Email already registered" },
+        { status: 400 }
+      )
     }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
+    // Create user with conditional fields
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        userType
+        userType,
+        // Only include these fields for students
+        ...(userType === "STUDENT" && {
+          gender,
+          religion
+        })
       }
     })
 
-    return NextResponse.json(user)
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user
+
+    return NextResponse.json(userWithoutPassword)
   } catch (error) {
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error('[REGISTER_ERROR]', error)
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    )
   }
 }

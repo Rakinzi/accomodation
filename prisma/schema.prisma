@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,61 +7,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String     @unique
   password      String
-  userType      UserType  @default(STUDENT)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  properties    Property[]
-  messages      Message[]
+  userType      UserType   @default(STUDENT)
+  // Add religion and gender for student filtering
+  religion      Religion?  
+  gender        Gender?
+  // Relations
+  properties    Property[] @relation("OwnerProperties")
+  occupancies   Occupant[] @relation("UserOccupancies")
+  sentMessages  Message[]  @relation("SentMessages")
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@map("users")
 }
 
 model Property {
-  id          String    @id @default(cuid())
-  price       Float
-  location    String
-  bedrooms    Int
-  bathrooms   Int
-  description String    @db.Text
-  amenities   String    @db.Text // Changed from String[] to String to store JSON
-  status      PropertyStatus @default(AVAILABLE)
-  images      Image[]
-  owner       User      @relation(fields: [ownerId], references: [id])
-  ownerId     String
-  messages    Message[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String         @id @default(cuid())
+  price        Float
+  location     String
+  bedrooms     Int
+  bathrooms    Int
+  description  String         @db.Text
+  amenities    String         @db.Text // JSON string of amenities
+  status       PropertyStatus @default(AVAILABLE)
+  // Sharing preferences
+  sharing      Boolean        @default(false)
+  gender       Gender         @default(ANY)
+  religion     Religion       @default(ANY)
+  maxOccupants Int           @default(1)
+  currentOccupants Int       @default(0)
+  // Relations
+  owner        User          @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String
+  images       Image[]       @relation("PropertyImages")
+  occupants    Occupant[]    @relation("PropertyOccupants")
+  messages     Message[]     @relation("PropertyMessages")
+  // Timestamps
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@map("properties")
+  @@index([ownerId])
+  @@index([status, sharing, gender, religion])
+}
+
+model Occupant {
+  id         String    @id @default(cuid())
+  // Relations
+  user       User      @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  property   Property  @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  // Occupancy details
+  startDate  DateTime  @default(now())
+  endDate    DateTime?
+  status     OccupantStatus @default(ACTIVE)
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("occupants")
+  @@index([userId])
+  @@index([propertyId])
+  @@unique([userId, propertyId, status])
 }
 
 model Image {
   id         String   @id @default(cuid())
   url        String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property   Property @relation("PropertyImages", fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId String
   createdAt  DateTime @default(now())
 
   @@map("images")
+  @@index([propertyId])
 }
 
 model Message {
   id         String   @id @default(cuid())
   content    String   @db.Text
-  sender     User     @relation(fields: [senderId], references: [id])
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   senderId   String
-  property   Property @relation(fields: [propertyId], references: [id])
+  property   Property @relation("PropertyMessages", fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@map("messages")
+  @@index([senderId])
+  @@index([propertyId])
 }
 
 enum PropertyStatus {
@@ -76,7 +110,29 @@ enum PropertyStatus {
   UNDER_MAINTENANCE
 }
 
+enum OccupantStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
 enum UserType {
   STUDENT
   LANDLORD
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  ANY
+}
+
+enum Religion {
+  CHRISTIAN
+  MUSLIM
+  HINDU
+  BUDDHIST
+  JEWISH
+  ANY
+  OTHER
 }

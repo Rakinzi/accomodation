@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
 
-export async function GET(req, { params }) {
+export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions)
-    const {id} = await params
+    const { id } = await params
+
     if (!session) {
       return NextResponse.json(
         { message: "Unauthorized" },
@@ -15,7 +16,7 @@ export async function GET(req, { params }) {
     }
 
     const property = await prisma.property.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
         images: true,
         owner: {
@@ -23,6 +24,21 @@ export async function GET(req, { params }) {
             id: true,
             name: true,
             email: true
+          }
+        },
+        occupants: {
+          where: {
+            status: 'ACTIVE'
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                gender: true,
+                religion: true
+              }
+            }
           }
         }
       }
@@ -32,13 +48,6 @@ export async function GET(req, { params }) {
       return NextResponse.json(
         { message: "Property not found" },
         { status: 404 }
-      )
-    }
-
-    if (property.ownerId !== session.user.id && session.user.userType !== 'STUDENT') {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
       )
     }
 
@@ -52,12 +61,11 @@ export async function GET(req, { params }) {
   }
 }
 
-export async function PATCH(req, { params }) {
+export async function PATCH(request, { params }) {
   try {
     const session = await getServerSession(authOptions)
-    const {id} = await params
-    console.log("ID Backend", id)
-    // Auth check
+    const { id } = await params
+
     if (!session || session.user.userType !== 'LANDLORD') {
       return NextResponse.json(
         { message: "Unauthorized" },
@@ -65,30 +73,24 @@ export async function PATCH(req, { params }) {
       )
     }
 
-    // Parse and validate request body
-    let body
-    try {
-      body = await req.json()
-    } catch (e) {
-      return NextResponse.json(
-        { message: "Invalid request body" },
-        { status: 400 }
-      )
-    }
+    const body = await request.json()
+    const {
+      images = [],
+      amenities = [],
+      sharing = false,
+      gender = 'ANY',
+      religion = 'ANY',
+      maxOccupants = 1,
+      ...propertyData
+    } = body
 
-    if (!body) {
-      return NextResponse.json(
-        { message: "Request body is required" },
-        { status: 400 }
-      )
-    }
-
-    const { images = [], ...propertyData } = body
-
-    // Validate property exists and check ownership
+    // Verify ownership
     const existingProperty = await prisma.property.findUnique({
-      where: { id: id },
-      select: { ownerId: true }
+      where: { id },
+      select: {
+        ownerId: true,
+        currentOccupants: true
+      }
     })
 
     if (!existingProperty) {
@@ -105,19 +107,33 @@ export async function PATCH(req, { params }) {
       )
     }
 
-    
+    if (parseInt(maxOccupants) < existingProperty.currentOccupants) {
+      return NextResponse.json(
+        { message: "Cannot reduce max occupants below current occupants" },
+        { status: 400 }
+      )
+    }
 
-    // Update property
     const updatedProperty = await prisma.property.update({
-      where: { id: id },
+      where: { id },
       data: {
         ...propertyData,
-        images: {
-          deleteMany: {},
-          create: images.map(image => ({
-            url: image.url
-          }))
-        }
+        price: parseFloat(propertyData.price),
+        bedrooms: parseInt(propertyData.bedrooms),
+        bathrooms: parseInt(propertyData.bathrooms),
+        amenities: JSON.stringify(amenities),
+        sharing: Boolean(sharing),
+        gender,
+        religion,
+        maxOccupants: parseInt(maxOccupants),
+        ...(images.length > 0 && {
+          images: {
+            deleteMany: {},
+            create: images.map(image => ({
+              url: image.url
+            }))
+          }
+        })
       },
       include: {
         images: true,
@@ -126,6 +142,21 @@ export async function PATCH(req, { params }) {
             id: true,
             name: true,
             email: true
+          }
+        },
+        occupants: {
+          where: {
+            status: 'ACTIVE'
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                gender: true,
+                religion: true
+              }
+            }
           }
         }
       }
@@ -138,46 +169,6 @@ export async function PATCH(req, { params }) {
 
   } catch (error) {
     console.error('[PROPERTY_UPDATE]', error)
-    return NextResponse.json(
-      { message: "Internal server error" },
-      { status: 500 }
-    )
-  }
-}
-
-export async function DELETE(req, { params }) {
-  try {
-    const session = await getServerSession(authOptions)
-
-    if (!session || session.user.userType !== 'LANDLORD') {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-
-    const existingProperty = await prisma.property.findUnique({
-      where: { id: params.id },
-      select: { ownerId: true }
-    })
-
-    if (!existingProperty || existingProperty.ownerId !== session.user.id) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-
-    await prisma.property.delete({
-      where: { id: params.id }
-    })
-
-    return NextResponse.json(
-      { message: "Property deleted successfully" },
-      { status: 200 }
-    )
-  } catch (error) {
-    console.error('[PROPERTY_DELETE]', error)
     return NextResponse.json(
       { message: "Internal server error" },
       { status: 500 }

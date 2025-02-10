@@ -17,7 +17,11 @@ import {
   Share2Icon,
   HeartIcon,
   CalendarIcon,
-  StarIcon
+  StarIcon,
+  Users2Icon,
+  CircleDollarSignIcon,
+  MessageCircleIcon,
+  CheckCircle2Icon
 } from "lucide-react"
 
 export default function PropertyDetailPage() {
@@ -32,9 +36,7 @@ export default function PropertyDetailPage() {
     const fetchProperty = async () => {
       try {
         const response = await fetch(`/api/properties/${id}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch property')
-        }
+        if (!response.ok) throw new Error('Failed to fetch property')
         const data = await response.json()
         setProperty(data)
         setError(null)
@@ -46,9 +48,7 @@ export default function PropertyDetailPage() {
       }
     }
 
-    if (id) {
-      fetchProperty()
-    }
+    if (id) fetchProperty()
   }, [id])
 
   const shareProperty = () => {
@@ -116,27 +116,38 @@ export default function PropertyDetailPage() {
             >
               <Share2Icon className="h-5 w-5" />
             </Button>
-            <Button
-              onClick={() => router.push(`/dashboard/properties/${id}/edit`)}
-              className="bg-sky-500 hover:bg-sky-600"
-            >
-              <EditIcon className="h-4 w-4 mr-2" />
-              Edit Property
-            </Button>
+            {session?.user?.id === property.ownerId && (
+              <Button
+                onClick={() => router.push(`/dashboard/properties/${id}/edit`)}
+                className="bg-sky-500 hover:bg-sky-600"
+              >
+                <EditIcon className="h-4 w-4 mr-2" />
+                Edit Property
+              </Button>
+            )}
           </div>
         </div>
 
-        <Card className="overflow-hidden border-none shadow-xl">
-          <div className="relative aspect-[21/9]">
-            <Carousel images={property.images} />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <Card className="lg:col-span-2 overflow-hidden border-none shadow-xl">
+            <div className="relative aspect-[16/9]">
+              <Carousel images={property.images} />
+            </div>
 
-          <div className="p-8 space-y-8">
-            <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-sky-500 hover:bg-sky-600">Featured</Badge>
-                  <Badge variant="outline">Available Now</Badge>
+            <div className="p-8 space-y-8">
+              {/* Property Header */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-sky-500 hover:bg-sky-600">
+                    {property.status}
+                  </Badge>
+                  {property.sharing && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      <Users2Icon className="h-4 w-4" />
+                      Shared Accommodation
+                    </Badge>
+                  )}
                 </div>
                 <h1 className="text-3xl font-bold">{property.location}</h1>
                 <p className="text-4xl font-bold text-sky-500 dark:text-sky-400">
@@ -144,49 +155,106 @@ export default function PropertyDetailPage() {
                   <span className="text-base font-normal text-zinc-500">/month</span>
                 </p>
               </div>
-              <div className="flex items-center gap-1 bg-sky-50 dark:bg-sky-900/20 p-2 rounded-lg">
-                <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-                <span className="font-semibold">4.9</span>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { icon: BedSingleIcon, label: 'Bedrooms', value: property.bedrooms },
-                { icon: ShowerHead, label: 'Bathrooms', value: property.bathrooms },
-                { icon: CalendarIcon, label: 'Available', value: 'Immediate' }
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4 text-center">
-                  <Icon className="h-6 w-6 mx-auto mb-2 text-sky-500" />
-                  <p className="text-sm text-zinc-500">{label}</p>
-                  <p className="font-semibold">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">About this property</h2>
-              <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                {property.description}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">What this place offers</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {amenities.map((amenity) => (
-                  <Badge 
-                    key={amenity} 
-                    variant="secondary"
-                    className="justify-center py-2 text-sm"
-                  >
-                    {amenity}
-                  </Badge>
+              {/* Property Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { icon: BedSingleIcon, label: 'Bedrooms', value: property.bedrooms },
+                  { icon: ShowerHead, label: 'Bathrooms', value: property.bathrooms },
+                  { icon: MapPinIcon, label: 'Location', value: property.location.split(',')[0] },
+                  { icon: Users2Icon, label: 'Max Occupants', value: property.sharing ? `${property.currentOccupants}/${property.maxOccupants}` : '1' }
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4">
+                    <Icon className="h-5 w-5 text-sky-500 mb-2" />
+                    <p className="text-sm text-zinc-500">{label}</p>
+                    <p className="font-semibold">{value}</p>
+                  </div>
                 ))}
               </div>
+
+              {/* Sharing Details */}
+              {property.sharing && (
+                <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-6 space-y-4">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Users2Icon className="h-5 w-5" />
+                    Sharing Preferences
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg">
+                      <p className="text-sm text-zinc-500">Preferred Gender</p>
+                      <p className="font-semibold">{property.gender}</p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-800 p-4 rounded-lg">
+                      <p className="text-sm text-zinc-500">Preferred Religion</p>
+                      <p className="font-semibold">{property.religion}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* About */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">About this property</h2>
+                <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  {property.description}
+                </p>
+              </div>
+
+              {/* Amenities */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">What this place offers</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {amenities.map((amenity) => (
+                    <div 
+                      key={amenity}
+                      className="flex items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg"
+                    >
+                      <CheckCircle2Icon className="h-4 w-4 text-sky-500" />
+                      <span>{amenity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          </Card>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Contact Card */}
+            <Card className="p-6 border-none shadow-xl">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-sky-100 dark:bg-sky-900 flex items-center justify-center">
+                    <Users2Icon className="h-6 w-6 text-sky-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{property.owner.name}</p>
+                    <p className="text-sm text-zinc-500">Property Owner</p>
+                  </div>
+                </div>
+                <Button className="w-full bg-sky-500 hover:bg-sky-600">
+                  <MessageCircleIcon className="h-4 w-4 mr-2" />
+                  Contact Owner
+                </Button>
+              </div>
+            </Card>
+
+            {/* Quick Info Card */}
+            <Card className="p-6 border-none shadow-xl space-y-4">
+              <h3 className="font-semibold">Quick Info</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <CircleDollarSignIcon className="h-4 w-4 text-sky-500" />
+                  <span>Deposit Required</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <CalendarIcon className="h-4 w-4 text-sky-500" />
+                  <span>Available Immediately</span>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   )
