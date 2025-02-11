@@ -19,15 +19,18 @@ import {
     PhoneIcon,
     MailIcon,
     PlayIcon,
-    PauseIcon
+    PauseIcon, 
+    MessageSquareIcon
 } from "lucide-react"
 import Image from "next/image"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useSession } from "next-auth/react"
 
 export function PropertyDetails({ id }) {
+    const { data: session } = useSession()
     const router = useRouter()
     const [selectedImage, setSelectedImage] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -306,11 +309,15 @@ export function PropertyDetails({ id }) {
                                 </div>
 
                                 <div className="flex gap-2">
-                                    <ContactDialog
-                                        open={showContact}
-                                        onOpenChange={setShowContact}
-                                        property={property}
-                                    />
+                                    {session?.user?.id !== property.ownerId && (
+                                        <Button
+                                            onClick={() => setShowContact(true)}
+                                            className="w-full bg-sky-500 hover:bg-sky-600"
+                                        >
+                                            <MessageSquareIcon className="h-4 w-4 mr-2" />
+                                            Contact Landlord
+                                        </Button>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="icon"
@@ -345,7 +352,12 @@ export function PropertyDetails({ id }) {
                 </div>
             </div>
 
-
+            {/* Contact Dialog */}
+            <ContactDialog
+                open={showContact}
+                onOpenChange={setShowContact}
+                property={property}
+            />
         </div>
     )
 }

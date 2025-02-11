@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -5,26 +8,52 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { MessageSquareIcon } from "lucide-react"
+import { MessageSquareIcon, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
-export function ContactDialog({ property }) {
-  const handleSubmit = (e) => {
+export function ContactDialog({ open, onOpenChange, property }) {
+  const [message, setMessage] = useState("")
+  const [isSending, setIsSending] = useState(false)
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Handle form submission
+    if (!message.trim()) {
+      toast.error("Please enter a message")
+      return
+    }
+
+    setIsSending(true)
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: message,
+          propertyId: property.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to send message")
+      }
+
+      toast.success("Message sent successfully")
+      setMessage("")
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error:", error)
+      toast.error("Failed to send message")
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button className="w-full bg-sky-500 hover:bg-sky-600">
-          <MessageSquareIcon className="w-4 h-4 mr-2" />
-          Contact Landlord
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Contact Landlord</DialogTitle>
@@ -33,10 +62,42 @@ export function ContactDialog({ property }) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input placeholder="Your Name" />
-          <Input type="email" placeholder="Your Email" />
-          <Textarea placeholder="Your Message" />
-          <Button type="submit" className="w-full">Send Message</Button>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">To: {property.owner.name}</p>
+            <p className="text-sm text-zinc-500">{property.owner.email}</p>
+          </div>
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write your message here..."
+            required
+            disabled={isSending}
+            className="min-h-[120px]"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSending}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSending}
+              className="bg-sky-500 hover:bg-sky-600"
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Message"
+              )}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

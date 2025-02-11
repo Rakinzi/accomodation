@@ -8,11 +8,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Carousel } from "@/components/dashboard/Carousel"
 import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
-import { 
-  BedSingleIcon, 
-  ShowerHead, 
-  MapPinIcon, 
-  EditIcon, 
+import {
+  BedSingleIcon,
+  ShowerHead,
+  MapPinIcon,
+  EditIcon,
   ArrowLeftIcon,
   Share2Icon,
   HeartIcon,
@@ -73,8 +73,8 @@ export default function PropertyDetailPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-red-500">{error || 'Property not found'}</p>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => router.back()}
           className="flex items-center gap-2"
         >
@@ -105,7 +105,7 @@ export default function PropertyDetailPage() {
               variant="ghost"
               size="icon"
               className="rounded-full hover:bg-pink-50 dark:hover:bg-pink-900"
-              onClick={() => {}}
+              onClick={() => { }}
             >
               <HeartIcon className="h-5 w-5 text-pink-500" />
             </Button>
@@ -117,15 +117,6 @@ export default function PropertyDetailPage() {
             >
               <Share2Icon className="h-5 w-5" />
             </Button>
-            {session?.user?.id === property.ownerId && (
-              <Button
-                onClick={() => router.push(`/dashboard/properties/${id}/edit`)}
-                className="bg-sky-500 hover:bg-sky-600"
-              >
-                <EditIcon className="h-4 w-4 mr-2" />
-                Edit Property
-              </Button>
-            )}
           </div>
         </div>
 
@@ -133,7 +124,7 @@ export default function PropertyDetailPage() {
           {/* Main Content */}
           <Card className="lg:col-span-2 overflow-hidden border-none shadow-xl">
             <div className="relative aspect-[16/9]">
-            <Carousel images={property.images} interval={3000} />
+              <Carousel images={property.images} interval={3000} />
             </div>
 
             <div className="p-8 space-y-8">
@@ -152,7 +143,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <h1 className="text-3xl font-bold">{property.location}</h1>
                 <p className="text-4xl font-bold text-sky-500 dark:text-sky-400">
-                  R{property.price.toLocaleString()}
+                  ${property.price.toLocaleString()}
                   <span className="text-base font-normal text-zinc-500">/month</span>
                 </p>
               </div>
@@ -206,7 +197,7 @@ export default function PropertyDetailPage() {
                 <h2 className="text-xl font-semibold">What this place offers</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {amenities.map((amenity) => (
-                    <div 
+                    <div
                       key={amenity}
                       className="flex items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg"
                     >
@@ -226,32 +217,62 @@ export default function PropertyDetailPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-sky-100 dark:bg-sky-900 flex items-center justify-center">
-                    <Users2Icon className="h-6 w-6 text-sky-500" />
+                    <StarIcon className="h-6 w-6 text-sky-500" />
                   </div>
                   <div>
-                    <p className="font-semibold">{property.owner.name}</p>
-                    <p className="text-sm text-zinc-500">Property Owner</p>
+                    <p className="font-semibold">Property Status</p>
+                    <p className="text-sm text-zinc-500">{property.status}</p>
                   </div>
                 </div>
-                <Button className="w-full bg-sky-500 hover:bg-sky-600">
-                  <MessageCircleIcon className="h-4 w-4 mr-2" />
-                  Contact Owner
-                </Button>
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={() => router.push(`/dashboard/properties/${id}/edit`)}
+                    className="w-full bg-sky-500 hover:bg-sky-600"
+                  >
+                    <EditIcon className="h-4 w-4 mr-2" />
+                    Edit Property
+                  </Button>
+                  {property.status === 'AVAILABLE' ? (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {/* Add mark as rented logic */ }}
+                    >
+                      <CheckCircle2Icon className="h-4 w-4 mr-2" />
+                      Mark as Rented
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {/* Add mark as available logic */ }}
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      Mark as Available
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
 
             {/* Quick Info Card */}
             <Card className="p-6 border-none shadow-xl space-y-4">
-              <h3 className="font-semibold">Quick Info</h3>
+              <h3 className="font-semibold">Property Details</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm">
                   <CircleDollarSignIcon className="h-4 w-4 text-sky-500" />
-                  <span>Deposit Required</span>
+                  <span>Deposit: ${property.deposit?.toLocaleString() || 'Not specified'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <CalendarIcon className="h-4 w-4 text-sky-500" />
-                  <span>Available Immediately</span>
+                  <span>Listed on: {new Date(property.createdAt).toLocaleDateString()}</span>
                 </div>
+                {property.sharing && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Users2Icon className="h-4 w-4 text-sky-500" />
+                    <span>Current Occupants: {property.currentOccupants}/{property.maxOccupants}</span>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
