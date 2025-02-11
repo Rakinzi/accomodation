@@ -63,13 +63,12 @@ export default function MessagesPage() {
 
     fetchMessages()
     // Set up polling for new messages
-    const interval = setInterval(fetchMessages, 10000) // Poll every 10 seconds
+    const interval = setInterval(fetchMessages, 5000) // Poll every 10 seconds
     return () => clearInterval(interval)
   }, [])
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault()
-    if (!newMessage.trim() || !selectedLandlord || sending) return
+  const handleSendMessage = async (content) => {
+    if (!content.trim() || !selectedLandlord || sending) return
 
     setSending(true)
     try {
@@ -79,7 +78,7 @@ export default function MessagesPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content: newMessage,
+          content,
           propertyId: selectedLandlord.messages[0].propertyId,
         }),
       })
@@ -112,15 +111,15 @@ export default function MessagesPage() {
           (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
         )
       }))
-
-      setNewMessage("")
     } catch (error) {
       console.error("Error:", error)
       toast.error("Failed to send message")
+      throw error // Re-throw to handle in MessageInput
     } finally {
       setSending(false)
     }
   }
+
 
   const filteredConversations = conversations.filter(({ owner, messages }) => 
     owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
