@@ -2,6 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
+
 export function MessageList({ messages, userId, messagesEndRef }) {
   const formatDate = (date) => {
     const messageDate = new Date(date)
