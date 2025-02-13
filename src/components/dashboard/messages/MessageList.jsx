@@ -1,9 +1,21 @@
+// src/components/dashboard/messages/MessageList.jsx
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { useRef } from "react"
+import { useEffect } from "react"
 
 
-export function MessageList({ messages, userId, messagesEndRef }) {
+
+export function MessageList({ messages, userId }) {
+
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+
   const formatDate = (date) => {
     const messageDate = new Date(date)
     const today = new Date()
@@ -22,14 +34,13 @@ export function MessageList({ messages, userId, messagesEndRef }) {
     <ScrollArea className="flex-1 p-4">
       <div className="space-y-4">
         {messages.map((message) => {
-          const isSentByMe = message.senderId === userId;
-
+          const isSentByMe = message.senderId === userId
           return (
             <div
               key={message.id}
               className={cn(
                 "flex flex-col space-y-1",
-                isSentByMe ? "items-end ml-auto" : "items-start mr-auto",
+                isSentByMe ? "items-end ml-auto" : "items-start mr-auto", // Swapped alignment
                 "max-w-[80%]"
               )}
             >

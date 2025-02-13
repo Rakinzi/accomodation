@@ -1,3 +1,4 @@
+// src/components/dashboard/messages/ChatHeader.jsx
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Users2Icon, UserCheck, CheckCircleIcon } from "lucide-react"

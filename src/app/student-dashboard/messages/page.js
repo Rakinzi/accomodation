@@ -1,6 +1,7 @@
+// src/app/student-dashboard/messages/page.js
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -26,6 +27,19 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Add this effect for auto-scrolling when new messages arrive
+  useEffect(() => {
+    if (selectedLandlord?.messages?.length > 0) {
+      scrollToBottom()
+    }
+  }, [selectedLandlord?.messages])
+
 
   const truncateText = (text, maxLength = 40) => {
     return text?.length > maxLength ? `${text.substring(0, maxLength)}...` : text
@@ -45,13 +59,73 @@ export default function MessagesPage() {
     return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
   }
 
+  const handleSelectLandlord = async (conversation) => {
+    setSelectedLandlord(conversation)
+    const unreadMessageIds = conversation.messages
+      .filter(m => !m.isRead && m.senderId !== session?.user?.id)
+      .map(m => m.id)
+
+    if (unreadMessageIds.length > 0) {
+      try {
+        const response = await fetch('/api/messages/read', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ messageIds: unreadMessageIds }),
+        })
+
+        if (!response.ok) throw new Error('Failed to mark messages as read')
+
+        // Update conversations to reflect read status and unread count
+        setConversations(prev =>
+          prev.map(conv => {
+            if (conv.owner.id === conversation.owner.id) {
+              return {
+                ...conv,
+                messages: conv.messages.map(m => ({
+                  ...m,
+                  isRead: m.isRead || unreadMessageIds.includes(m.id)
+                })),
+                unreadCount: 0 // Reset unread count
+              }
+            }
+            return conv
+          })
+        )
+      } catch (error) {
+        console.error('Error marking messages as read:', error)
+        toast.error("Failed to mark messages as read")
+      }
+    }
+  }
+
   useEffect(() => {
     const fetchMessages = async () => {
       try {
         const response = await fetch("/api/messages")
         if (!response.ok) throw new Error("Failed to fetch messages")
         const data = await response.json()
-        setConversations(Object.values(data))
+        setConversations(data)
+
+        // Update selected landlord if it exists
+        if (selectedLandlord) {
+          const updatedConversation = data.find(
+            conv => conv.property.id === selectedLandlord.property.id
+          )
+          if (updatedConversation) {
+            // Preserve read status for currently viewed conversation
+            const mergedConversation = {
+              ...updatedConversation,
+              messages: updatedConversation.messages.map(message => ({
+                ...message,
+                isRead: message.senderId === session?.user?.id ? true :
+                  selectedLandlord.messages.find(m => m.id === message.id)?.isRead || false
+              }))
+            }
+            setSelectedLandlord(mergedConversation)
+          }
+        }
       } catch (error) {
         console.error("Error:", error)
         setError("Failed to load messages")
@@ -62,15 +136,16 @@ export default function MessagesPage() {
     }
 
     fetchMessages()
-    // Set up polling for new messages
-    const interval = setInterval(fetchMessages, 5000) // Poll every 10 seconds
+    // Poll more frequently for better real-time experience
+    const interval = setInterval(fetchMessages, 3000) // Poll every 3 seconds
     return () => clearInterval(interval)
-  }, [])
+  }, [selectedLandlord?.property.id, session?.user?.id]) // Add dependencies
 
-  const handleSendMessage = async (content) => {
-    if (!content.trim() || !selectedLandlord || sending) return
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedLandlord || sending) return;
 
-    setSending(true)
+    setSending(true);
     try {
       const response = await fetch("/api/messages", {
         method: "POST",
@@ -78,56 +153,54 @@ export default function MessagesPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content,
-          propertyId: selectedLandlord.messages[0].propertyId,
+          content: newMessage.trim(),
+          propertyId: selectedLandlord.property.id,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to send message")
+        throw new Error("Failed to send message");
       }
 
-      const { data: newMessageData } = await response.json()
+      setNewMessage(""); // Clear input after successful send
 
-      // Update conversations with new message
-      setConversations(prevConversations => 
-        prevConversations.map(conv => {
-          if (conv.owner.id === selectedLandlord.owner.id) {
-            return {
-              ...conv,
-              messages: [...conv.messages, newMessageData].sort(
-                (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-              )
-            }
-          }
-          return conv
-        })
-      )
+      // Fetch fresh data
+      const messagesResponse = await fetch("/api/messages");
+      if (!messagesResponse.ok) throw new Error("Failed to fetch updated messages");
 
-      // Update selected landlord messages
-      setSelectedLandlord(prev => ({
-        ...prev,
-        messages: [...prev.messages, newMessageData].sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-        )
-      }))
+      const data = await messagesResponse.json();
+      setConversations(data);
+
+      // Update selected landlord
+      const updatedConversation = data.find(
+        conv => conv.owner.id === selectedLandlord.owner.id
+      );
+      if (updatedConversation) {
+        setSelectedLandlord(updatedConversation);
+      }
     } catch (error) {
-      console.error("Error:", error)
-      toast.error("Failed to send message")
-      throw error // Re-throw to handle in MessageInput
+      console.error("Error:", error);
+      toast.error("Failed to send message");
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
 
-  const filteredConversations = conversations.filter(({ owner, messages }) => 
-    owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    messages.some(m => 
-      m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.property.location.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredConversations = conversations
+    .filter(({ owner, messages, property }) =>
+      owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      messages.some(m =>
+        m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        property.location.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     )
-  )
+    .sort((a, b) => {
+      // Sort by latest message
+      const aLatest = new Date(a.messages[a.messages.length - 1].createdAt)
+      const bLatest = new Date(b.messages[b.messages.length - 1].createdAt)
+      return bLatest - aLatest
+    })
 
   if (loading) {
     return (
@@ -141,8 +214,8 @@ export default function MessagesPage() {
     return (
       <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center gap-4">
         <p className="text-red-500">{error}</p>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => window.location.reload()}
           className="flex items-center gap-2"
         >
@@ -152,6 +225,8 @@ export default function MessagesPage() {
       </div>
     )
   }
+
+
 
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-white dark:bg-zinc-950">
@@ -175,22 +250,30 @@ export default function MessagesPage() {
                 {searchQuery ? "No conversations found" : "No messages yet"}
               </div>
             ) : (
-              filteredConversations.map(({ owner, messages }) => {
-                const latestMessage = messages[messages.length - 1]
+              filteredConversations.map((conversation) => {
+                const { owner, messages, unreadCount, property } = conversation;
+                const latestMessage = messages[messages.length - 1];
 
                 return (
                   <button
                     key={owner.id}
-                    onClick={() => setSelectedLandlord({ owner, messages })}
+                    onClick={() => handleSelectLandlord(conversation)}
                     className={cn(
-                      "w-full p-3 flex items-start gap-3 rounded-lg transition-colors",
+                      "w-full p-3 flex items-start gap-3 rounded-lg transition-colors relative",
                       selectedLandlord?.owner.id === owner.id
                         ? "bg-sky-50 dark:bg-sky-900/20"
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     )}
                   >
-                    <div className="h-10 w-10 rounded-full bg-sky-100 dark:bg-sky-900 flex items-center justify-center">
-                      <MessageSquareIcon className="w-5 h-5 text-sky-500" />
+                    <div className="relative">
+                      <div className="h-10 w-10 rounded-full bg-sky-100 dark:bg-sky-900 flex items-center justify-center">
+                        <MessageSquareIcon className="w-5 h-5 text-sky-500" />
+                      </div>
+                      {unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-medium bg-red-500 text-white rounded-full">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex justify-between items-center gap-2">
@@ -200,14 +283,14 @@ export default function MessagesPage() {
                         </span>
                       </div>
                       <p className="text-sm text-zinc-500 truncate">
-                        {messages[0].property.location}
+                        {property.location}
                       </p>
                       <p className="text-xs text-zinc-400 truncate mt-1">
                         {truncateText(latestMessage.content)}
                       </p>
                     </div>
                   </button>
-                )
+                );
               })
             )}
           </div>
@@ -262,6 +345,7 @@ export default function MessagesPage() {
                     </div>
                   )
                 })}
+                <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
@@ -275,8 +359,8 @@ export default function MessagesPage() {
                   className="flex-1"
                   disabled={sending}
                 />
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={!newMessage.trim() || sending}
                   className="bg-sky-500 hover:bg-sky-600"
                 >

@@ -1,3 +1,4 @@
+// src/components/dashboard/messages/ConversationList.jsx
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"

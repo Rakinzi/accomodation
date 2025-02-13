@@ -58,19 +58,22 @@ model Property {
 }
 
 model Occupant {
-  id         String    @id @default(cuid())
+  id            String    @id @default(cuid())
   // Relations
-  user       User      @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
-  userId     String
-  property   Property  @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
+  user          User      @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  property      Property  @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId    String
   // Occupancy details
-  startDate  DateTime  @default(now())
-  endDate    DateTime?
-  status     OccupantStatus @default(ACTIVE)
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  status        OccupantStatus @default(ACTIVE)
+  // New fields for room allocation
+  numberOfRooms Int       @default(1)
+  totalPrice    Float
   // Timestamps
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@map("occupants")
   @@index([userId])

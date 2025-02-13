@@ -51,7 +51,43 @@ export async function GET(request, { params }) {
       )
     }
 
-    return NextResponse.json(property)
+    // Calculate room allocation and pricing details
+    const totalAllocatedRooms = property.occupants.reduce((sum, occupant) => 
+      sum + occupant.numberOfRooms, 0
+    )
+    const remainingRooms = property.bedrooms - totalAllocatedRooms
+    const remainingOccupantSlots = property.maxOccupants - property.currentOccupants
+
+    // Calculate maximum allowable rooms for next allocation
+    const maxAllowableRooms = Math.min(
+      remainingRooms,
+      Math.ceil(remainingRooms / Math.max(remainingOccupantSlots, 1)),
+      property.sharing ? 2 : 1 // Max 2 rooms per person if sharing, 1 if not
+    )
+
+    const propertyWithAllocationDetails = {
+      ...property,
+      allocation: {
+        totalRooms: property.bedrooms,
+        occupiedRooms: totalAllocatedRooms,
+        availableRooms: remainingRooms,
+        maxAllowableRooms,
+        totalOccupants: property.currentOccupants,
+        maxOccupants: property.maxOccupants,
+        remainingOccupantSlots,
+        pricePerRoom: property.price,
+        isShared: property.sharing,
+        occupantDetails: property.occupants.map(occupant => ({
+          ...occupant,
+          calculatedRent: occupant.numberOfRooms * property.price,
+        })),
+        totalRentalIncome: property.occupants.reduce((sum, occupant) => 
+          sum + (occupant.numberOfRooms * property.price), 0
+        )
+      }
+    }
+
+    return NextResponse.json(propertyWithAllocationDetails)
   } catch (error) {
     console.error('[PROPERTY_GET]', error)
     return NextResponse.json(
