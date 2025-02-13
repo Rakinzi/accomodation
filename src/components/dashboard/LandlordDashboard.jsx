@@ -1,17 +1,9 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PropertyList } from "./PropertyList"
-import { Analytics } from "./Analytics"
-import { Messages } from "./Messages"
-import { Settings } from "./Settings"
-import {
-  HomeIcon,
-  BarChart3Icon,
-  MessageSquareIcon,
-  SettingsIcon,
-  PlusIcon,
-} from "lucide-react"
+import { PlusIcon, Clock, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AddPropertyDialog } from "./AddPropertyDialog"
 
@@ -20,9 +12,17 @@ export function LandlordDashboard() {
   const [properties, setProperties] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddProperty, setShowAddProperty] = useState(false)
+  const [currentDateTime, setCurrentDateTime] = useState("")
 
   useEffect(() => {
     fetchProperties()
+    // Update time every second
+    const timer = setInterval(() => {
+      const now = new Date()
+      setCurrentDateTime(now.toISOString().slice(0, 19).replace('T', ' '))
+    }, 1000)
+
+    return () => clearInterval(timer)
   }, [])
 
   const fetchProperties = async () => {
@@ -36,11 +36,21 @@ export function LandlordDashboard() {
       setIsLoading(false)
     }
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/50 to-white dark:from-zinc-900/50 dark:to-zinc-900">
       <div className="container mx-auto p-6 space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Landlord Dashboard</h1>
+        {/* Header with DateTime, User, and Add Property Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <div className="flex items-center gap-4 text-sm text-zinc-500">
+              <div className="flex items-center gap-1">
+                <UserCircle className="w-4 h-4" />
+                <span>{session?.user?.name || 'Loading...'}</span>
+              </div>
+            </div>
+          </div>
           <Button
             onClick={() => setShowAddProperty(true)}
             className="bg-sky-500 hover:bg-sky-600"
@@ -50,53 +60,21 @@ export function LandlordDashboard() {
           </Button>
         </div>
 
-        <Tabs defaultValue="properties" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto">
-            <TabsTrigger value="properties" className="flex items-center gap-2">
-              <HomeIcon className="w-4 h-4" />
-              Properties
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3Icon className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-2">
-              <MessageSquareIcon className="w-4 h-4" />
-              Messages
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <SettingsIcon className="w-4 h-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="properties">
-            <PropertyList />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <Analytics />
-          </TabsContent>
-
-          <TabsContent value="messages">
-            <Messages />
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Settings />
-          </TabsContent>
-        </Tabs>
+        {/* Property List */}
+        <PropertyList 
+          properties={properties} 
+          isLoading={isLoading} 
+          onRefresh={fetchProperties}
+        />
       </div>
 
+      {/* Add Property Dialog */}
       <AddPropertyDialog
         open={showAddProperty}
         onOpenChange={setShowAddProperty}
         onSuccess={() => {
-          // This will trigger a refresh of the PropertyList
-          const propertyList = document.querySelector('[data-tab="properties"]')
-          if (propertyList) {
-            propertyList.click()
-          }
+          fetchProperties() // Refresh the property list
+          setShowAddProperty(false)
         }}
       />
     </div>

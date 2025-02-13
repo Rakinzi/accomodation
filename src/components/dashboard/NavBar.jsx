@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,32 +12,50 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  BellIcon,
-  LogOutIcon,
-  Settings,
-  UserIcon,
-  HomeIcon,
-  Building2Icon,
-  MessageSquareIcon,
-  MenuIcon
-} from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { signOut } from "next-auth/react"
-import { useRouter } from "next/navigation"
-
+import {
+  Bell,
+  LogOut,
+  Settings,
+  User,
+  Home,
+  Building2,
+  MessageSquare,
+  Menu,
+  BarChart3
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useSession } from "next-auth/react"
 
 export function Navbar() {
+  const { data: session } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
 
   const handleLogout = async () => {
     try {
       await signOut({ redirect: false })
-      router.push('/auth/login') // Redirect to sign in page after logout
+      router.push('/auth/login')
     } catch (error) {
       console.error('Logout failed:', error)
     }
   }
+
+  const isActive = (path) => {
+    if (path === '/dashboard' && pathname === '/dashboard') {
+      return true
+    }
+    return path !== '/dashboard' && pathname.startsWith(path)
+  }
+
+  const navigationLinks = [
+    { href: "/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/dashboard/properties", icon: Building2, label: "Properties" },
+    { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
+    { href: "/dashboard/messages", icon: MessageSquare, label: "Messages" },
+  ]
+
   return (
     <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl dark:bg-zinc-950/80">
       <div className="container mx-auto px-4">
@@ -53,56 +72,46 @@ export function Navbar() {
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon">
-                <MenuIcon className="h-5 w-5" />
+                <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <nav className="flex flex-col gap-4">
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-                >
-                  <HomeIcon className="h-4 w-4" />
-                  Dashboard
-                </Link>
-                <Link
-                  href="/dashboard/properties"
-                  className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-                >
-                  <Building2Icon className="h-4 w-4" />
-                  Properties
-                </Link>
-                <Link
-                  href="/dashboard/messages"
-                  className="flex items-center gap-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-                >
-                  <MessageSquareIcon className="h-4 w-4" />
-                  Messages
-                </Link>
+                {navigationLinks.map(({ href, icon: Icon, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "flex items-center gap-2 text-sm transition-colors",
+                      isActive(href)
+                        ? "text-sky-600 dark:text-sky-400"
+                        : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                ))}
               </nav>
             </SheetContent>
           </Sheet>
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-1">
-            <Link href="/dashboard">
-              <Button variant="ghost" className="flex items-center gap-2">
-                <HomeIcon className="h-4 w-4" />
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/dashboard/properties">
-              <Button variant="ghost" className="flex items-center gap-2">
-                <Building2Icon className="h-4 w-4" />
-                Properties
-              </Button>
-            </Link>
-            <Link href="/dashboard/messages">
-              <Button variant="ghost" className="flex items-center gap-2">
-                <MessageSquareIcon className="h-4 w-4" />
-                Messages
-              </Button>
-            </Link>
+            {navigationLinks.map(({ href, icon: Icon, label }) => (
+              <Link key={href} href={href}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "flex items-center gap-2 transition-colors",
+                    isActive(href) && "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Button>
+              </Link>
+            ))}
           </div>
 
           {/* Right Side - Notifications & Profile */}
@@ -110,7 +119,7 @@ export function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
-                  <BellIcon className="h-5 w-5" />
+                  <Bell className="h-5 w-5" />
                   <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-950" />
                 </Button>
               </DropdownMenuTrigger>
@@ -118,7 +127,9 @@ export function Navbar() {
                 <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <div className="max-h-96 overflow-auto">
-                  {/* Add notifications here */}
+                  <div className="p-4 text-sm text-zinc-500">
+                    No new notifications
+                  </div>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -138,13 +149,13 @@ export function Navbar() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-zinc-500">john@example.com</p>
+                    <p className="text-sm font-medium">{session?.user?.name || 'Loading...'}</p>
+                    <p className="text-xs text-zinc-500">{session?.user?.email || 'Loading...'}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <UserIcon className="mr-2 h-4 w-4" />
+                  <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
@@ -156,7 +167,7 @@ export function Navbar() {
                   className="text-red-600 cursor-pointer"
                   onClick={handleLogout}
                 >
-                  <LogOutIcon className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4" />
                   <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
