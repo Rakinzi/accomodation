@@ -40,7 +40,7 @@ export function PropertyCard({ property, onDelete }) {
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <h3 className="font-semibold text-white">{property.location}</h3>
             <p className="text-lg font-bold text-white">
-              ${property.price.toLocaleString()}
+              ${property.price.toLocaleString()} / room
             </p>
           </div>
         </div>

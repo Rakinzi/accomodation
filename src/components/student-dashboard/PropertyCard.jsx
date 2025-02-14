@@ -38,7 +38,7 @@ export function PropertyCard({ property }) {
 
           <p className="text-2xl font-bold text-sky-500">
             ${price.toLocaleString()}
-            <span className="text-sm font-normal text-zinc-500">/month</span>
+            <span className="text-sm font-normal text-zinc-500"> / room</span>
           </p>
 
           <div className="grid grid-cols-2 gap-2 text-sm">

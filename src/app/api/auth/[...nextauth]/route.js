@@ -1,3 +1,5 @@
+// app/api/auth/[...nextauth]/route.js
+
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
@@ -26,21 +28,33 @@ export const authOptions = {
                     throw new Error('Invalid credentials')
                 }
 
-                return user
+                // Make sure to return all necessary user data
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    userType: user.userType
+                }
             }
         })
     ],
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                token.userType = user.userType
                 token.id = user.id
+                token.email = user.email
+                token.name = user.name
+                token.userType = user.userType
             }
             return token
         },
         async session({ session, token }) {
-            session.user.id = token.id
-            session.user.userType = token.userType
+            if (session.user) {
+                session.user.id = token.id
+                session.user.email = token.email
+                session.user.name = token.name
+                session.user.userType = token.userType
+            }
             return session
         }
     },
@@ -51,6 +65,7 @@ export const authOptions = {
         strategy: "jwt",
         maxAge: 30 * 24 * 60 * 60, // 30 days
     },
+    debug: process.env.NODE_ENV === 'development',
 }
 
 const handler = NextAuth(authOptions)

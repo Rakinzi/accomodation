@@ -284,7 +284,7 @@ export function PropertyDetails({ id }) {
                             <div className="space-y-6">
                                 <div>
                                     <h1 className="text-2xl font-semibold bg-gradient-to-r from-sky-600 to-sky-400 bg-clip-text text-transparent">
-                                        ${property.price.toLocaleString()}/month
+                                        ${property.price.toLocaleString()} / room
                                     </h1>
                                     <p className="flex items-center text-zinc-600 dark:text-zinc-400 mt-2">
                                         <MapPinIcon className="w-4 h-4 mr-1" />
