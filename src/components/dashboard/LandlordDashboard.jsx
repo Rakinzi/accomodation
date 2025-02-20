@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useSession } from "next-auth/react"
 import { PropertyList } from "./PropertyList"
 import { PlusIcon, Clock, UserCircle } from "lucide-react"
@@ -16,7 +16,6 @@ export function LandlordDashboard() {
 
   useEffect(() => {
     fetchProperties()
-    // Update time every second
     const timer = setInterval(() => {
       const now = new Date()
       setCurrentDateTime(now.toISOString().slice(0, 19).replace('T', ' '))
@@ -36,6 +35,8 @@ export function LandlordDashboard() {
       setIsLoading(false)
     }
   }
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/50 to-white dark:from-zinc-900/50 dark:to-zinc-900">

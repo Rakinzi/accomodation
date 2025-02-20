@@ -61,20 +61,36 @@ export default function MessagesPage() {
   }
 
   const checkAllocationStatus = async (conversation) => {
-    setIsCheckingAllocation(true)
-    try {
-      const response = await fetch(`/api/properties/${conversation.property.id}/occupants/${conversation.partner.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setIsAllocated(data.isActive)
-      }
-    } catch (error) {
-      console.error('Error checking allocation status:', error)
-    } finally {
-      setIsCheckingAllocation(false)
-    }
-  }
+    // Add debug logging
+    console.log('Checking conversation:', conversation);
 
+    // Extract IDs and add validation
+    const propertyId = conversation?.property?.id;
+    const userId = conversation?.partner?.id; // Changed from owner.id to partner.id
+
+    if (!propertyId || !userId) {
+      console.error('Missing required IDs:', { propertyId, userId });
+      return false;
+    }
+
+    setIsCheckingAllocation(true);
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/occupants/${userId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to check allocation status');
+      }
+
+      setIsAllocated(data.isActive);
+      return data.isActive;
+    } catch (error) {
+      console.error('Error checking allocation status:', error);
+      return false;
+    } finally {
+      setIsCheckingAllocation(false);
+    }
+  };
   const handleUnallocate = async () => {
     if (!selectedStudent) return
 
@@ -104,8 +120,8 @@ export default function MessagesPage() {
   }
 
   const handleSelectStudent = async (conversation) => {
-    setSelectedStudent(conversation)
-    checkAllocationStatus(conversation)
+    setSelectedStudent(conversation);
+    await checkAllocationStatus(conversation);
     const unreadMessageIds = conversation.messages
       .filter(m => !m.isRead && m.senderId !== session?.user?.id)
       .map(m => m.id)
