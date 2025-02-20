@@ -1,4 +1,3 @@
-// src/app/student-dashboard/messages/page.js
 "use client"
 
 import { useEffect, useState, useRef } from "react"
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import {
   MessageSquareIcon,
-  HomeIcon,
   SearchIcon,
   Send as SendIcon,
   ArrowLeftIcon
@@ -33,13 +31,11 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Add this effect for auto-scrolling when new messages arrive
   useEffect(() => {
     if (selectedLandlord?.messages?.length > 0) {
       scrollToBottom()
     }
   }, [selectedLandlord?.messages])
-
 
   const truncateText = (text, maxLength = 40) => {
     return text?.length > maxLength ? `${text.substring(0, maxLength)}...` : text
@@ -67,7 +63,7 @@ export default function MessagesPage() {
 
     if (unreadMessageIds.length > 0) {
       try {
-        const response = await fetch('/api/messages/read', {
+        const response = await fetch('/api/conversations/read', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -77,17 +73,16 @@ export default function MessagesPage() {
 
         if (!response.ok) throw new Error('Failed to mark messages as read')
 
-        // Update conversations to reflect read status and unread count
         setConversations(prev =>
           prev.map(conv => {
-            if (conv.owner.id === conversation.owner.id) {
+            if (conv.id === conversation.id) {  // Changed from landlord.id
               return {
                 ...conv,
                 messages: conv.messages.map(m => ({
                   ...m,
                   isRead: m.isRead || unreadMessageIds.includes(m.id)
                 })),
-                unreadCount: 0 // Reset unread count
+                unreadCount: 0
               }
             }
             return conv
@@ -100,21 +95,20 @@ export default function MessagesPage() {
     }
   }
 
+
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const response = await fetch("/api/messages")
+        const response = await fetch("/api/conversations")
         if (!response.ok) throw new Error("Failed to fetch messages")
         const data = await response.json()
         setConversations(data)
 
-        // Update selected landlord if it exists
         if (selectedLandlord) {
           const updatedConversation = data.find(
-            conv => conv.property.id === selectedLandlord.property.id
+            conv => conv.id === selectedLandlord.id
           )
           if (updatedConversation) {
-            // Preserve read status for currently viewed conversation
             const mergedConversation = {
               ...updatedConversation,
               messages: updatedConversation.messages.map(message => ({
@@ -136,72 +130,61 @@ export default function MessagesPage() {
     }
 
     fetchMessages()
-    // Poll more frequently for better real-time experience
-    const interval = setInterval(fetchMessages, 3000) // Poll every 3 seconds
+    const interval = setInterval(fetchMessages, 3000)
     return () => clearInterval(interval)
-  }, [selectedLandlord?.property.id, session?.user?.id]) // Add dependencies
+  }, [selectedLandlord?.id, session?.user?.id])
 
   const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedLandlord || sending) return;
+    e.preventDefault()
+    if (!newMessage.trim() || !selectedLandlord || sending) return
 
-    setSending(true);
+    setSending(true)
     try {
-      const response = await fetch("/api/messages", {
+      const response = await fetch(`/api/conversations/${selectedLandlord.id}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content: newMessage.trim(),
-          propertyId: selectedLandlord.property.id,
+          content: newMessage.trim()
         }),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error("Failed to send message");
+        throw new Error("Failed to send message")
       }
 
-      setNewMessage(""); // Clear input after successful send
+      setNewMessage("")
 
-      // Fetch fresh data
-      const messagesResponse = await fetch("/api/messages");
-      if (!messagesResponse.ok) throw new Error("Failed to fetch updated messages");
+      const messagesResponse = await fetch("/api/conversations")
+      if (!messagesResponse.ok) throw new Error("Failed to fetch updated messages")
 
-      const data = await messagesResponse.json();
-      setConversations(data);
+      const data = await messagesResponse.json()
+      setConversations(data)
 
-      // Update selected landlord
       const updatedConversation = data.find(
-        conv => conv.owner.id === selectedLandlord.owner.id
-      );
+        conv => conv.id === selectedLandlord.id
+      )
       if (updatedConversation) {
-        setSelectedLandlord(updatedConversation);
+        setSelectedLandlord(updatedConversation)
       }
     } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to send message");
+      console.error("Error:", error)
+      toast.error("Failed to send message")
     } finally {
-      setSending(false);
+      setSending(false)
     }
-  };
-
+  }
 
   const filteredConversations = conversations
-    .filter(({ owner, messages, property }) =>
-      owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    .filter(({ partner, messages, property }) =>  // Changed from landlord to partner
+      partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       messages.some(m =>
         m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
         property.location.toLowerCase().includes(searchQuery.toLowerCase())
       )
     )
-    .sort((a, b) => {
-      // Sort by latest message
-      const aLatest = new Date(a.messages[a.messages.length - 1].createdAt)
-      const bLatest = new Date(b.messages[b.messages.length - 1].createdAt)
-      return bLatest - aLatest
-    })
-
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
   if (loading) {
     return (
       <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -226,8 +209,6 @@ export default function MessagesPage() {
     )
   }
 
-
-
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-white dark:bg-zinc-950">
       {/* Sidebar */}
@@ -251,16 +232,16 @@ export default function MessagesPage() {
               </div>
             ) : (
               filteredConversations.map((conversation) => {
-                const { owner, messages, unreadCount, property } = conversation;
-                const latestMessage = messages[messages.length - 1];
-
+                const { partner, messages, unreadCount, property } = conversation
+                const latestMessage = messages[messages.length - 1]
+  
                 return (
                   <button
-                    key={owner.id}
+                    key={conversation.id}
                     onClick={() => handleSelectLandlord(conversation)}
                     className={cn(
                       "w-full p-3 flex items-start gap-3 rounded-lg transition-colors relative",
-                      selectedLandlord?.owner.id === owner.id
+                      selectedLandlord?.id === conversation.id
                         ? "bg-sky-50 dark:bg-sky-900/20"
                         : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                     )}
@@ -277,7 +258,7 @@ export default function MessagesPage() {
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex justify-between items-center gap-2">
-                        <p className="font-medium truncate">{owner.name}</p>
+                        <p className="font-medium truncate">{partner.name}</p>
                         <span className="text-xs text-zinc-500 whitespace-nowrap">
                           {formatDate(latestMessage.createdAt)}
                         </span>
@@ -290,13 +271,13 @@ export default function MessagesPage() {
                       </p>
                     </div>
                   </button>
-                );
+                )
               })
             )}
           </div>
         </ScrollArea>
       </div>
-
+  
       {/* Chat Area */}
       <div className="flex-1 flex flex-col">
         {selectedLandlord ? (
@@ -308,18 +289,18 @@ export default function MessagesPage() {
                   <MessageSquareIcon className="w-5 h-5 text-sky-500" />
                 </div>
                 <div>
-                  <p className="font-medium">{selectedLandlord.owner.name}</p>
-                  <p className="text-sm text-zinc-500">{selectedLandlord.owner.email}</p>
+                  <p className="font-medium">{selectedLandlord.partner.name}</p>
+                  <p className="text-sm text-zinc-500">{selectedLandlord.partner.email}</p>
                 </div>
               </div>
             </div>
-
+  
             {/* Messages */}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
                 {selectedLandlord.messages.map((message) => {
-                  const isSentByMe = message.senderId === session?.user?.id;
-
+                  const isSentByMe = message.senderId === session?.user?.id
+  
                   return (
                     <div
                       key={message.id}
@@ -348,7 +329,7 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
-
+  
             {/* Message Input */}
             <form onSubmit={handleSendMessage} className="p-4 border-t border-zinc-200 dark:border-zinc-800">
               <div className="flex gap-2">

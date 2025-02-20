@@ -1,3 +1,4 @@
+// api/messages/chat/route.js
 import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"

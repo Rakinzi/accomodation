@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,11 @@ export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  
+
+  useEffect(() => {
+    // Update the document title
+    document.title = "Login | Student Accommodation"
+  }, [])
   async function onSubmit(e) {
     e.preventDefault()
     setIsLoading(true)
@@ -41,10 +45,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-lg dark:bg-zinc-950">
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center p-4"
+      style={{
+        backgroundImage: "url('/bg.jpg')", // Make sure to add your background image to the public folder
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Login form */}
+      <div className="relative z-10 w-full max-w-md space-y-8 rounded-2xl bg-white/80 backdrop-blur-sm p-8 shadow-xl dark:bg-zinc-900/80 animate-in fade-in slide-in-from-bottom-4 duration-1000">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Welcome back</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Welcome back</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
             Please sign in to continue
           </p>
@@ -79,8 +95,8 @@ export default function LoginPage() {
             <p className="text-sm text-red-500">{error}</p>
           )}
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full"
             disabled={isLoading}
           >
@@ -98,7 +114,7 @@ export default function LoginPage() {
         <div className="text-center text-sm">
           <p className="text-zinc-600 dark:text-zinc-400">
             Don&apos;t have an account?{" "}
-            <Link 
+            <Link
               href="/auth/register"
               className="font-medium text-sky-600 hover:text-sky-500"
             >

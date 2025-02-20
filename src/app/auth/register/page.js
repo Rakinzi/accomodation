@@ -61,7 +61,7 @@ export default function RegisterPage() {
       }
 
       toast.success("Registration successful! Please sign in to continue")
-      
+
       setTimeout(() => {
         router.push("/auth/login")
       }, 2000)
@@ -75,10 +75,22 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
-      <div className="w-full max-w-2xl space-y-8 rounded-2xl bg-white p-8 shadow-lg dark:bg-zinc-950">
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center p-4"
+      style={{
+        backgroundImage: "url('/bg.jpg')", // Using the same background image as login
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Registration form */}
+      <div className="relative z-10 w-full max-w-2xl space-y-8 rounded-2xl bg-white/80 backdrop-blur-sm p-8 shadow-xl dark:bg-zinc-900/80 animate-in fade-in slide-in-from-bottom-4 duration-1000">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Create an account</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Create an account</h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
             Sign up to get started
           </p>
@@ -123,8 +135,8 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label>Account Type</Label>
-              <Select 
-                value={userType} 
+              <Select
+                value={userType}
                 onValueChange={handleUserTypeChange}
                 disabled={isLoading}
               >
@@ -142,8 +154,8 @@ export default function RegisterPage() {
               <>
                 <div className="space-y-2">
                   <Label>Gender</Label>
-                  <Select 
-                    name="gender" 
+                  <Select
+                    name="gender"
                     defaultValue="ANY"
                     disabled={isLoading}
                   >
@@ -159,8 +171,8 @@ export default function RegisterPage() {
 
                 <div className="space-y-2">
                   <Label>Religion</Label>
-                  <Select 
-                    name="religion" 
+                  <Select
+                    name="religion"
                     defaultValue="ANY"
                     disabled={isLoading}
                   >
@@ -185,8 +197,8 @@ export default function RegisterPage() {
             <p className="text-sm text-red-500">{error}</p>
           )}
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="w-full"
             disabled={isLoading}
           >
@@ -204,7 +216,7 @@ export default function RegisterPage() {
         <div className="text-center text-sm">
           <p className="text-zinc-600 dark:text-zinc-400">
             Already have an account?{" "}
-            <Link 
+            <Link
               href="/auth/login"
               className="font-medium text-sky-600 hover:text-sky-500"
             >

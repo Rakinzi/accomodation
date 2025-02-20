@@ -8,49 +8,50 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  name          String?
-  email         String     @unique
-  password      String
-  userType      UserType   @default(STUDENT)
-  // Add religion and gender for student filtering
-  religion      Religion?  
-  gender        Gender?
+  id                    String         @id @default(cuid())
+  name                  String?
+  email                 String         @unique
+  password              String
+  userType             UserType       @default(STUDENT)
+  religion             Religion?
+  gender               Gender?
   // Relations
-  properties    Property[] @relation("OwnerProperties")
-  occupancies   Occupant[] @relation("UserOccupancies")
-  sentMessages  Message[]  @relation("SentMessages")
+  properties           Property[]     @relation("OwnerProperties")
+  occupancies          Occupant[]     @relation("UserOccupancies")
+  sentMessages         Message[]      @relation("SentMessages")
+  studentConversations Conversation[] @relation("StudentConversations")
+  landlordConversations Conversation[] @relation("LandlordConversations")
   // Timestamps
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@map("users")
 }
 
 model Property {
-  id           String         @id @default(cuid())
-  price        Float
-  location     String
-  bedrooms     Int
-  bathrooms    Int
-  description  String         @db.Text
-  amenities    String         @db.Text // JSON string of amenities
-  status       PropertyStatus @default(AVAILABLE)
+  id                String         @id @default(cuid())
+  price             Float
+  location          String
+  bedrooms          Int
+  bathrooms         Int
+  description       String         @db.Text
+  amenities         String         @db.Text // JSON string of amenities
+  status            PropertyStatus @default(AVAILABLE)
   // Sharing preferences
-  sharing      Boolean        @default(false)
-  gender       Gender         @default(ANY)
-  religion     Religion       @default(ANY)
-  maxOccupants Int           @default(1)
-  currentOccupants Int       @default(0)
+  sharing           Boolean        @default(false)
+  gender            Gender         @default(ANY)
+  religion          Religion       @default(ANY)
+  maxOccupants      Int           @default(1)
+  currentOccupants  Int           @default(0)
   // Relations
-  owner        User          @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId      String
-  images       Image[]       @relation("PropertyImages")
-  occupants    Occupant[]    @relation("PropertyOccupants")
-  messages     Message[]     @relation("PropertyMessages")
+  owner             User           @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId           String
+  images            Image[]        @relation("PropertyImages")
+  occupants         Occupant[]     @relation("PropertyOccupants")
+  conversations     Conversation[] @relation("PropertyConversations")
   // Timestamps
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   @@map("properties")
   @@index([ownerId])
@@ -58,22 +59,22 @@ model Property {
 }
 
 model Occupant {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   // Relations
-  user          User      @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
   userId        String
-  property      Property  @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
+  property      Property       @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
   propertyId    String
   // Occupancy details
-  startDate     DateTime  @default(now())
+  startDate     DateTime       @default(now())
   endDate       DateTime?
   status        OccupantStatus @default(ACTIVE)
-  // New fields for room allocation
-  numberOfRooms Int       @default(1)
+  // Room allocation
+  numberOfRooms Int            @default(1)
   totalPrice    Float
   // Timestamps
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@map("occupants")
   @@index([userId])
@@ -92,19 +93,38 @@ model Image {
   @@index([propertyId])
 }
 
+model Conversation {
+  id          String    @id @default(cuid())
+  student     User      @relation("StudentConversations", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId   String
+  landlord    User      @relation("LandlordConversations", fields: [landlordId], references: [id], onDelete: Cascade)
+  landlordId  String
+  property    Property  @relation("PropertyConversations", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId  String
+  messages    Message[] @relation("ConversationMessages")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([studentId, landlordId, propertyId])
+  @@map("conversations")
+  @@index([studentId])
+  @@index([landlordId])
+  @@index([propertyId])
+}
+
 model Message {
-  id         String   @id @default(cuid())
-  content    String   @db.Text
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  senderId   String
-  property   Property @relation("PropertyMessages", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id             String       @id @default(cuid())
+  content        String       @db.Text
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 
   @@map("messages")
   @@index([senderId])
-  @@index([propertyId])
+  @@index([conversationId])
 }
 
 enum PropertyStatus {
