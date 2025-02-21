@@ -31,6 +31,7 @@ model User {
 model Property {
   id                String         @id @default(cuid())
   price             Float
+  deposit           Float         @default(0) // Added deposit field
   location          String
   bedrooms          Int
   bathrooms         Int
@@ -59,22 +60,26 @@ model Property {
 }
 
 model Occupant {
-  id            String         @id @default(cuid())
+  id             String         @id @default(cuid())
   // Relations
-  user          User           @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
-  userId        String
-  property      Property       @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId    String
+  user           User           @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  property       Property       @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId     String
   // Occupancy details
-  startDate     DateTime       @default(now())
-  endDate       DateTime?
-  status        OccupantStatus @default(ACTIVE)
+  startDate      DateTime       @default(now())
+  endDate        DateTime?
+  status         OccupantStatus @default(ACTIVE)
   // Room allocation
-  numberOfRooms Int            @default(1)
-  totalPrice    Float
+  numberOfRooms  Int           @default(1)
+  totalPrice     Float
+  // Deposit tracking
+  depositPaid    Float         @default(0)
+  depositStatus  DepositStatus @default(PENDING)
+  depositPaidAt  DateTime?
   // Timestamps
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@map("occupants")
   @@index([userId])
@@ -137,6 +142,12 @@ enum OccupantStatus {
   ACTIVE
   INACTIVE
   PENDING
+}
+
+enum DepositStatus {
+  PENDING
+  PAID
+  REFUNDED
 }
 
 enum UserType {

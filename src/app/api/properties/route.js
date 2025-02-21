@@ -20,6 +20,7 @@ export async function POST(request) {
       description,
       amenities,
       images,
+      deposit, // Add this
       // Sharing preferences
       sharing = false,
       gender = 'ANY',
@@ -35,6 +36,7 @@ export async function POST(request) {
         bathrooms: parseInt(bathrooms),
         description,
         amenities: JSON.stringify(amenities),
+        deposit: parseFloat(deposit), // Add this
         // Sharing preferences
         sharing: Boolean(sharing),
         gender,
@@ -91,7 +93,7 @@ export async function GET(request) {
   try {
     const session = await getServerSession(authOptions)
     const { searchParams } = new URL(request.url)
-    
+
     // Filtering params
     const sharing = searchParams.get('sharing')
     const gender = searchParams.get('gender')

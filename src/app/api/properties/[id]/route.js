@@ -117,6 +117,7 @@ export async function PATCH(request, { params }) {
       gender = 'ANY',
       religion = 'ANY',
       maxOccupants = 1,
+      deposit = 0, // Add this line
       ...propertyData
     } = body
 
@@ -155,6 +156,7 @@ export async function PATCH(request, { params }) {
       data: {
         ...propertyData,
         price: parseFloat(propertyData.price),
+        deposit: parseFloat(deposit), // Add this line
         bedrooms: parseInt(propertyData.bedrooms),
         bathrooms: parseInt(propertyData.bathrooms),
         amenities: JSON.stringify(amenities),

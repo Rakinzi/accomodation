@@ -7,11 +7,12 @@ import { AspectRatio } from "@/components/ui/aspect-ratio"
 import Image from "next/image"
 import { 
   BedSingleIcon, 
-  ShowerHead as ShowerIcon, // Fixed import
+  ShowerHead as ShowerIcon,
   MapPinIcon, 
   EditIcon, 
   TrashIcon,
-  ImageIcon 
+  ImageIcon,
+  DollarSign // Add this import
 } from "lucide-react"
 import Link from "next/link"
 
@@ -39,9 +40,20 @@ export function PropertyCard({ property, onDelete }) {
           </AspectRatio>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <h3 className="font-semibold text-white">{property.location}</h3>
-            <p className="text-lg font-bold text-white">
-              ${property.price.toLocaleString()} / room
-            </p>
+            <div className="space-y-1">
+              <p className="text-lg font-bold text-white">
+                ${property.price.toLocaleString()} / room
+              </p>
+              {/* Add deposit display */}
+              <p className="text-sm font-medium text-white/90 flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
+                {property.deposit ? (
+                  `${property.deposit.toLocaleString()} deposit`
+                ) : (
+                  'No deposit required'
+                )}
+              </p>
+            </div>
           </div>
         </div>
       </Link>

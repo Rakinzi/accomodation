@@ -31,6 +31,7 @@ import { X } from "lucide-react"
 
 const formSchema = z.object({
   price: z.string().min(1, "Price is required"),
+  deposit: z.string().min(1, "Deposit amount is required"),
   location: z.string().min(1, "Location is required"),
   bedrooms: z.string().min(1, "Number of bedrooms is required"),
   bathrooms: z.string().min(1, "Number of bathrooms is required"),
@@ -76,6 +77,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
       bathrooms: "",
       description: "",
       amenities: [],
+      deposit: "",
       // Sharing preferences
       sharing: false,
       gender: "ANY",
@@ -177,6 +179,27 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                             {...field}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="deposit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Deposit Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="$0.00"
+                            type="number"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Required security deposit amount
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

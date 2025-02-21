@@ -40,6 +40,7 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
   sharing: z.boolean().default(false),
+  deposit: z.string().min(1, "Deposit amount is required"),
   gender: z.enum(["ANY", "MALE", "FEMALE"]).default("ANY"),
   religion: z.enum(["ANY", "CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "OTHER"]).default("ANY"),
   maxOccupants: z.string().optional().transform(val => val || "1"),
@@ -65,6 +66,7 @@ export default function EditPropertyPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       price: "",
+      deposit: "",
       location: "",
       bedrooms: "",
       bathrooms: "",
@@ -87,6 +89,7 @@ export default function EditPropertyPage() {
 
         form.reset({
           price: data.price.toString(),
+          deposit: data.deposit.toString() || "",
           location: data.location,
           bedrooms: data.bedrooms.toString(),
           bathrooms: data.bathrooms.toString(),
@@ -188,6 +191,24 @@ export default function EditPropertyPage() {
                           <FormLabel>Price per Month</FormLabel>
                           <FormControl>
                             <Input type="number" placeholder="0.00" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="deposit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Security Deposit</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -438,18 +459,18 @@ export default function EditPropertyPage() {
                   />
                 </div>
               </div>
-                 {/* Submit Button Section */}
-                 <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+              {/* Submit Button Section */}
+              <div className="flex justify-end gap-4 pt-6 mt-6 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => router.back()}
                   className="w-32"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={submitting}
                   className="w-32 bg-sky-500 hover:bg-sky-600"
                 >
