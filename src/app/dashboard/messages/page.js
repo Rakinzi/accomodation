@@ -61,36 +61,29 @@ export default function MessagesPage() {
   }
 
   const checkAllocationStatus = async (conversation) => {
-    // Add debug logging
-    console.log('Checking conversation:', conversation);
-
-    // Extract IDs and add validation
     const propertyId = conversation?.property?.id;
-    const userId = conversation?.partner?.id; // Changed from owner.id to partner.id
+    const userId = conversation?.partner?.id;
 
     if (!propertyId || !userId) {
-      console.error('Missing required IDs:', { propertyId, userId });
       return false;
     }
 
     setIsCheckingAllocation(true);
     try {
-      const response = await fetch(`/api/properties/${propertyId}/occupants/${userId}`);
+      // Updated API endpoint path
+      const response = await fetch(`/api/properties/check-allocation?propertyId=${propertyId}&userId=${userId}`);
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to check allocation status');
-      }
-
       setIsAllocated(data.isActive);
       return data.isActive;
     } catch (error) {
       console.error('Error checking allocation status:', error);
+      setIsAllocated(false);
       return false;
     } finally {
       setIsCheckingAllocation(false);
     }
   };
+
   const handleUnallocate = async () => {
     if (!selectedStudent) return
 
