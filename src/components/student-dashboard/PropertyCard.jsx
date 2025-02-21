@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Carousel } from "@/components/dashboard/Carousel"
-import { BedSingleIcon, ShowerHead, MapPinIcon, Users2Icon } from "lucide-react"
+import { BedSingleIcon, ShowerHead, MapPinIcon, Users2Icon, DollarSign } from "lucide-react" // Add DollarSign
 import Link from "next/link"
 
 export function PropertyCard({ property }) {
@@ -11,6 +11,7 @@ export function PropertyCard({ property }) {
     id,
     images,
     price,
+    deposit, // Add this
     location,
     bedrooms,
     bathrooms,
@@ -29,17 +30,27 @@ export function PropertyCard({ property }) {
         <div className="relative aspect-[4/3]">
           <Carousel images={images} interval={5000} />
         </div>
-        
+
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold truncate">{location}</h3>
             <Badge className="bg-sky-500">{status}</Badge>
           </div>
 
-          <p className="text-2xl font-bold text-sky-500">
-            ${price.toLocaleString()}
-            <span className="text-sm font-normal text-zinc-500"> / room</span>
-          </p>
+          {/* Price and Deposit Section */}
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-sky-500">
+              ${price.toLocaleString()}
+              <span className="text-sm font-normal text-zinc-500"> / room</span>
+            </p>
+            <p className="text-sm text-zinc-600 flex items-center gap-1">
+              <DollarSign className="h-4 w-4" />
+              <span>
+                {deposit.toLocaleString()} deposit required
+              </span>
+            </p>
+
+          </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center gap-1">
@@ -75,8 +86,8 @@ export function PropertyCard({ property }) {
 
           <div className="flex flex-wrap gap-1">
             {amenities.slice(0, 3).map((amenity) => (
-              <Badge 
-                key={amenity} 
+              <Badge
+                key={amenity}
                 variant="secondary"
                 className="text-xs"
               >
@@ -84,7 +95,7 @@ export function PropertyCard({ property }) {
               </Badge>
             ))}
             {amenities.length > 3 && (
-              <Badge 
+              <Badge
                 variant="secondary"
                 className="text-xs"
               >

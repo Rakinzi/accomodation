@@ -19,8 +19,9 @@ import {
     PhoneIcon,
     MailIcon,
     PlayIcon,
-    PauseIcon, 
-    MessageSquareIcon
+    PauseIcon,
+    MessageSquareIcon,
+    DollarSign
 } from "lucide-react"
 import Image from "next/image"
 import { useState, useEffect } from "react"
@@ -86,7 +87,7 @@ export function PropertyDetails({ id }) {
         }
     }
 
-    if (error || !property) {
+    if (error) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
                 <p className="text-red-500">{error || 'Property not found'}</p>
@@ -236,6 +237,29 @@ export function PropertyDetails({ id }) {
                                     <p className="text-lg leading-relaxed text-zinc-700 dark:text-zinc-300">
                                         {property.description}
                                     </p>
+
+                                    {/* Add this pricing details section */}
+                                    <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg">
+                                        <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                                            <DollarSign className="w-5 h-5" />
+                                            Pricing Details
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm text-zinc-500">Monthly Rent</p>
+                                                <p className="font-medium">${property.price.toLocaleString()} per room</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-zinc-500">Security Deposit</p>
+                                                <p className="font-medium">
+                                                    {property.deposit > 0
+                                                        ? `$${property.deposit.toLocaleString()}`
+                                                        : "No deposit required"
+                                                    }
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
                                     {property.sharing && (
                                         <div className="mt-4 p-4 bg-sky-50 dark:bg-sky-900/20 rounded-lg">
                                             <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
@@ -286,6 +310,12 @@ export function PropertyDetails({ id }) {
                                     <h1 className="text-2xl font-semibold bg-gradient-to-r from-sky-600 to-sky-400 bg-clip-text text-transparent">
                                         ${property.price.toLocaleString()} / room
                                     </h1>
+
+                                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 flex items-center">
+                                        <DollarSign className="w-4 h-4 mr-1" />
+                                        ${property.deposit.toLocaleString()} deposit required
+                                    </p>
+
                                     <p className="flex items-center text-zinc-600 dark:text-zinc-400 mt-2">
                                         <MapPinIcon className="w-4 h-4 mr-1" />
                                         {property.location}
