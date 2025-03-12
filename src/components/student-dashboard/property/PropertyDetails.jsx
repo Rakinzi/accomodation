@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ContactDialog } from "./ContactDialog"
+import { PropertyReviews } from "./PropertyReviews" // Import the new Reviews component
 import {
     HeartIcon,
     BedSingleIcon,
@@ -21,7 +22,8 @@ import {
     PlayIcon,
     PauseIcon,
     MessageSquareIcon,
-    DollarSign
+    DollarSign,
+    Star // Added for reviews
 } from "lucide-react"
 import Image from "next/image"
 import { useState, useEffect } from "react"
@@ -40,6 +42,7 @@ export function PropertyDetails({ id }) {
     const [showContact, setShowContact] = useState(false)
     const [isPlaying, setIsPlaying] = useState(true)
     const [slideInterval] = useState(5000)
+    const [activeTab, setActiveTab] = useState("details") // Added state for tracking active tab
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -226,11 +229,12 @@ export function PropertyDetails({ id }) {
                             </ScrollArea>
                         </div>
 
-                        <Tabs defaultValue="details" className="w-full">
-                            <TabsList className="w-full grid grid-cols-3">
+                        <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <TabsList className="w-full grid grid-cols-4">
                                 <TabsTrigger value="details">Details</TabsTrigger>
                                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
                                 <TabsTrigger value="location">Location</TabsTrigger>
+                                <TabsTrigger value="reviews">Reviews</TabsTrigger>
                             </TabsList>
                             <TabsContent value="details" className="mt-6">
                                 <div className="prose dark:prose-invert max-w-none">
@@ -253,14 +257,14 @@ export function PropertyDetails({ id }) {
                                                 <p className="text-sm text-zinc-500">Security Deposit</p>
                                                 <p className="font-medium">
                                                     {property.deposit > 0
-                                                        ? `$${property.deposit.toLocaleString()}`
+                                                        ? `${property.deposit.toLocaleString()}`
                                                         : "No deposit required"
                                                     }
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                    {property.sharing && (
+                                    {property.roomSharing && (
                                         <div className="mt-4 p-4 bg-sky-50 dark:bg-sky-900/20 rounded-lg">
                                             <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                                                 <Users2Icon className="w-5 h-5" />
@@ -277,7 +281,7 @@ export function PropertyDetails({ id }) {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm text-zinc-500">Occupancy</p>
-                                                    <p className="font-medium">{property.currentOccupants}/{property.maxOccupants}</p>
+                                                    <p className="font-medium">{property.currentOccupants}/{property.tenantsPerRoom}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -299,6 +303,11 @@ export function PropertyDetails({ id }) {
                                 <div className="aspect-video rounded-xl bg-zinc-100 dark:bg-zinc-800">
                                     {/* Add Map Component Here */}
                                 </div>
+                            </TabsContent>
+                            
+                            {/* New Reviews Tab */}
+                            <TabsContent value="reviews" className="mt-6">
+                                <PropertyReviews propertyId={id} />
                             </TabsContent>
                         </Tabs>
                     </div>

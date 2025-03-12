@@ -87,7 +87,7 @@ export default function Room() {
 
     const handleLeaveRoom = async () => {
         if (!allocation) return
-        
+
         setIsLeaving(true)
         try {
             const response = await fetch(`/api/allocations/leave`, {
@@ -96,7 +96,6 @@ export default function Room() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    propertyId: allocation.property.id,
                     occupantId: allocation.id
                 }),
             })
@@ -179,7 +178,7 @@ export default function Room() {
                                 <p className="text-xl font-medium text-red-600 dark:text-red-400">
                                     {error}
                                 </p>
-                                <Button 
+                                <Button
                                     onClick={() => {
                                         setError(null);
                                         setLoading(true);
@@ -218,8 +217,8 @@ export default function Room() {
                         <Card className="border-none shadow-md bg-white/50 backdrop-blur-sm dark:bg-zinc-800/50">
                             <CardContent className="p-4">
                                 <div className="flex justify-end">
-                                    <Button 
-                                        variant="destructive" 
+                                    <Button
+                                        variant="destructive"
                                         onClick={() => setLeaveDialogOpen(true)}
                                         className="flex items-center gap-2"
                                     >
@@ -229,7 +228,7 @@ export default function Room() {
                                 </div>
                             </CardContent>
                         </Card>
-                        
+
                         {/* Property Details Grid */}
                         <div className="grid gap-6 md:grid-cols-2">
                             {/* Property Card */}
@@ -290,8 +289,8 @@ export default function Room() {
                                         <div>
                                             <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Status</p>
                                             <Badge className={`mt-2 px-3 py-1 ${allocation.status === 'ACTIVE'
-                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
-                                                    : 'bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
+                                                ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
+                                                : 'bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
                                                 }`}>
                                                 {allocation.status}
                                             </Badge>
