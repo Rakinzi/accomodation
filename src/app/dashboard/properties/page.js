@@ -7,17 +7,56 @@ import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Users2Icon, BedDouble, Bath, HomeIcon } from "lucide-react"
+import { 
+  Users2Icon, 
+  BedDouble, 
+  Bath, 
+  HomeIcon, 
+  Star 
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { PropertySkeleton } from "@/components/dashboard/PropertySkeleton"
 import Image from "next/image"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
 
 export default function PropertiesPage() {
     const { data: session } = useSession()
     const [properties, setProperties] = useState([])
     const [occupants, setOccupants] = useState([])
     const [loading, setLoading] = useState(true)
-    const [unallocating, setUnallocating] = useState(null) // Store occupant ID being unallocated
+    const [unallocating, setUnallocating] = useState(null)
+    const [unallocateDialogOpen, setUnallocateDialogOpen] = useState(false)
+    const [selectedOccupant, setSelectedOccupant] = useState(null)
+
+    // Render star rating function
+    const renderStars = (rating, reviewCount) => {
+        return (
+            <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                    <Star 
+                        key={star} 
+                        className={`h-4 w-4 ${
+                            rating >= star 
+                                ? 'fill-yellow-400 text-yellow-400' 
+                                : 'text-zinc-300'
+                        }`} 
+                    />
+                ))}
+                <span className="text-xs text-zinc-500 ml-1">
+                    ({reviewCount || 0})
+                </span>
+            </div>
+        )
+    }
 
     useEffect(() => {
         const fetchData = async () => {
@@ -46,18 +85,21 @@ export default function PropertiesPage() {
         }
     }, [session?.user?.id])
 
-    const handleUnallocate = async (propertyId, occupancyId) => {
-        if (unallocating) return
+    const handleUnallocate = async () => {
+        if (unallocating || !selectedOccupant) return
 
-        setUnallocating(occupancyId)
+        setUnallocating(selectedOccupant.id)
         try {
-            const response = await fetch(`/api/properties/${propertyId}/unallocate`, {
+            const response = await fetch("/api/properties/allocate", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    occupancyId
+                    propertyId: selectedOccupant.property.id,
+                    userId: selectedOccupant.user.id,
+                    roomNumber: null, // Explicitly set to null for unallocation
+                    action: "unallocate"
                 }),
             })
 
@@ -69,14 +111,17 @@ export default function PropertiesPage() {
             toast.success("Rooms unallocated successfully")
 
             // Update occupants list
-            setOccupants(prev => prev.filter(occ => occ.id !== occupancyId))
+            setOccupants(prev => prev.filter(occ => occ.id !== selectedOccupant.id))
 
             // Update property status in properties list
             setProperties(prev => prev.map(prop =>
-                prop.id === propertyId
+                prop.id === selectedOccupant.property.id
                     ? { ...prop, status: 'AVAILABLE', currentOccupants: prop.currentOccupants - 1 }
                     : prop
             ))
+
+            // Close dialog
+            setUnallocateDialogOpen(false)
         } catch (error) {
             console.error("Error:", error)
             toast.error(error.message || "Failed to unallocate rooms")
@@ -85,10 +130,13 @@ export default function PropertiesPage() {
         }
     }
 
-    if (loading) {
+    const openUnallocateDialog = (occupant) => {
+        setSelectedOccupant(occupant)
+        setUnallocateDialogOpen(true)
+    }
 
+    if (loading) {
         return (
-            
             <div className="p-8">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -97,14 +145,10 @@ export default function PropertiesPage() {
             </div>
             </div>
         )
-
     }
 
     return (
         <div className="container max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-            {/* Current Time Display */}
-
-
             <Tabs defaultValue="properties" className="w-full">
                 <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
                     <TabsTrigger value="properties">
@@ -145,7 +189,11 @@ export default function PropertiesPage() {
                                     </Badge>
                                 </div>
                                 <div className="p-6">
-                                    <h3 className="font-semibold mb-2 text-lg truncate">{property.location}</h3>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-semibold text-lg truncate">{property.location}</h3>
+                                        {property.averageRating !== undefined && 
+                                            renderStars(property.averageRating, property._count?.reviews)}
+                                    </div>
                                     <div className="flex items-center gap-4 text-sm text-zinc-500 mb-4">
                                         <div className="flex items-center gap-1">
                                             <BedDouble className="w-4 h-4" />
@@ -157,10 +205,10 @@ export default function PropertiesPage() {
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                                        <p className="font-medium text-lg">${property.price}</p>
+                                        <p className="font-medium text-lg">${property.price.toLocaleString()}</p>
                                         <div className="flex items-center gap-1 text-sm text-zinc-500">
                                             <Users2Icon className="w-4 h-4" />
-                                            {property.currentOccupants}/{property.maxOccupants}
+                                            {property.currentOccupants}/{property.tenantsPerRoom}
                                         </div>
                                     </div>
                                 </div>
@@ -179,7 +227,6 @@ export default function PropertiesPage() {
                             </div>
                         )}
                     </div>
-
                 </TabsContent>
 
                 <TabsContent value="occupants">
@@ -205,7 +252,7 @@ export default function PropertiesPage() {
                                                 variant="destructive"
                                                 size="sm"
                                                 disabled={unallocating === occupant.id}
-                                                onClick={() => handleUnallocate(occupant.property.id, occupant.id)}
+                                                onClick={() => openUnallocateDialog(occupant)}
                                             >
                                                 {unallocating === occupant.id ? (
                                                     <LoadingSpinner className="w-4 h-4" />
@@ -218,11 +265,11 @@ export default function PropertiesPage() {
                                     <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4 text-sm">
                                         <div>
                                             <p className="text-zinc-500">Rooms</p>
-                                            <p className="font-medium">{occupant.numberOfRooms}</p>
+                                            <p className="font-medium">{occupant.roomNumber}</p>
                                         </div>
                                         <div>
                                             <p className="text-zinc-500">Total Price</p>
-                                            <p className="font-medium">${occupant.totalPrice}</p>
+                                            <p className="font-medium">${occupant.totalPrice.toLocaleString()}</p>
                                         </div>
                                         <div>
                                             <p className="text-zinc-500">Start Date</p>
@@ -249,6 +296,34 @@ export default function PropertiesPage() {
                     </div>
                 </TabsContent>
             </Tabs>
+
+            {/* Unallocate Confirmation Dialog */}
+            <AlertDialog 
+                open={unallocateDialogOpen} 
+                onOpenChange={setUnallocateDialogOpen}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Unallocate Room</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to unallocate the room for {selectedOccupant?.user.name} 
+                            from {selectedOccupant?.property.location}?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={unallocating !== null}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={handleUnallocate}
+                            disabled={unallocating !== null}
+                            className="bg-red-500 hover:bg-red-600"
+                        >
+                            {unallocating ? <LoadingSpinner className="w-4 h-4" /> : 'Unallocate'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

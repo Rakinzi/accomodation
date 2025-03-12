@@ -15,15 +15,17 @@ import {
 import { 
   SearchIcon, 
   FilterIcon,
-  Users2Icon
+  Users2Icon,
+  StarIcon
 } from "lucide-react"
 
 export function FilterBar({ onFiltersChange }) {
   const [location, setLocation] = useState("")
-  const [priceRange, setPriceRange] = useState([0, 5000])
+  const [priceRange, setPriceRange] = useState([0, 500])
   const [sharing, setSharing] = useState(false)
   const [gender, setGender] = useState("ANY")
   const [religion, setReligion] = useState("ANY")
+  const [minRating, setMinRating] = useState("0")
 
   const formatPrice = (value) => `$${value.toLocaleString()}`
 
@@ -34,13 +36,14 @@ export function FilterBar({ onFiltersChange }) {
       maxPrice: priceRange[1] || undefined,
       sharing: sharing || undefined,
       gender: gender !== "ANY" ? gender : undefined,
-      religion: religion !== "ANY" ? religion : undefined
+      religion: religion !== "ANY" ? religion : undefined,
+      minRating: minRating !== "0" ? parseFloat(minRating) : undefined
     })
   }
 
   return (
     <div className="bg-white/50 backdrop-blur-lg border rounded-xl p-6 shadow-lg">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {/* Search Location */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Location</label>
@@ -65,7 +68,7 @@ export function FilterBar({ onFiltersChange }) {
               value={priceRange}
               onValueChange={setPriceRange}
               min={0}
-              max={5000}
+              max={500}
               step={10}
               className="mt-2"
             />
@@ -106,6 +109,23 @@ export function FilterBar({ onFiltersChange }) {
               <SelectItem value="BUDDHIST">Buddhist</SelectItem>
               <SelectItem value="JEWISH">Jewish</SelectItem>
               <SelectItem value="OTHER">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Minimum Rating Filter */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Minimum Rating</label>
+          <Select value={minRating} onValueChange={setMinRating}>
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder="Select minimum rating" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Any Rating</SelectItem>
+              <SelectItem value="3">3+ Stars</SelectItem>
+              <SelectItem value="3.5">3.5+ Stars</SelectItem>
+              <SelectItem value="4">4+ Stars</SelectItem>
+              <SelectItem value="4.5">4.5+ Stars</SelectItem>
             </SelectContent>
           </Select>
         </div>

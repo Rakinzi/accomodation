@@ -1,23 +1,44 @@
 "use client"
-
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import Image from "next/image"
-import { 
-  BedSingleIcon, 
+import {
+  BedSingleIcon,
   ShowerHead as ShowerIcon,
-  MapPinIcon, 
-  EditIcon, 
+  MapPinIcon,
+  EditIcon,
   TrashIcon,
   ImageIcon,
-  DollarSign // Add this import
+  DollarSign,
+  Star // Add Star import
 } from "lucide-react"
 import Link from "next/link"
 
 export function PropertyCard({ property, onDelete }) {
   const amenities = JSON.parse(property.amenities)
+
+  // Render star rating
+  const renderStars = (rating) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star 
+            key={star} 
+            className={`h-4 w-4 ${
+              rating >= star 
+                ? 'fill-yellow-400 text-yellow-400' 
+                : 'text-zinc-300'
+            }`} 
+          />
+        ))}
+        <span className="text-xs text-zinc-500 ml-1">
+          ({property._count?.reviews || 0} reviews)
+        </span>
+      </div>
+    )
+  }
 
   return (
     <Card className="group overflow-hidden transition-all hover:shadow-lg">
@@ -39,12 +60,14 @@ export function PropertyCard({ property, onDelete }) {
             )}
           </AspectRatio>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-            <h3 className="font-semibold text-white">{property.location}</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-white">{property.location}</h3>
+              {property.averageRating !== undefined && renderStars(property.averageRating)}
+            </div>
             <div className="space-y-1">
               <p className="text-lg font-bold text-white">
                 ${property.price.toLocaleString()} / room
               </p>
-              {/* Add deposit display */}
               <p className="text-sm font-medium text-white/90 flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
                 {property.deposit ? (
@@ -57,7 +80,6 @@ export function PropertyCard({ property, onDelete }) {
           </div>
         </div>
       </Link>
-
       <CardContent className="p-4">
         <div className="flex items-center gap-4 text-sm text-zinc-500">
           <div className="flex items-center gap-1">
@@ -73,7 +95,6 @@ export function PropertyCard({ property, onDelete }) {
             <span className="truncate">{property.location}</span>
           </div>
         </div>
-
         <div className="mt-4 flex flex-wrap gap-2">
           {amenities.slice(0, 3).map((amenity) => (
             <Badge key={amenity} variant="secondary" className="text-xs">
@@ -87,24 +108,38 @@ export function PropertyCard({ property, onDelete }) {
           )}
         </div>
       </CardContent>
-
-      <CardFooter className="flex justify-end gap-2 p-4 pt-0">
-        <Link href={`/dashboard/properties/${property.id}/edit`}>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <EditIcon className="h-4 w-4" />
+      <CardFooter className="flex justify-between items-center p-4 pt-0">
+        {/* Show average rating in footer */}
+        {property.averageRating !== undefined && (
+          <div className="flex items-center gap-1">
+            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm text-zinc-600">
+              {property.averageRating.toFixed(1)} 
+              <span className="text-xs text-zinc-500 ml-1">
+                ({property._count?.reviews || 0} reviews)
+              </span>
+            </span>
+          </div>
+        )}
+        
+        <div className="flex gap-2 ml-auto">
+          <Link href={`/dashboard/properties/${property.id}/edit`}>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <EditIcon className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault()
+              onDelete()
+            }}
+            className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+          >
+            <TrashIcon className="h-4 w-4" />
           </Button>
-        </Link>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={(e) => {
-            e.preventDefault()
-            onDelete()
-          }}
-          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
-        >
-          <TrashIcon className="h-4 w-4" />
-        </Button>
+        </div>
       </CardFooter>
     </Card>
   )

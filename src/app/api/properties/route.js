@@ -95,26 +95,27 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url)
     
     // Filtering params
-    const roomSharing = searchParams.get('roomSharing')
+    const roomSharing = searchParams.get('sharing')
     const gender = searchParams.get('gender')
     const religion = searchParams.get('religion')
     const ownerId = searchParams.get('ownerId')
     const maxPrice = searchParams.get('maxPrice')
     const minPrice = searchParams.get('minPrice')
+    const minRating = searchParams.get('minRating')
     
     // Build where clause
     const where = {
       status: 'AVAILABLE',
       ...(ownerId && { ownerId }),
-      ...(roomSharing && { roomSharing: roomSharing === 'true' }),
+      ...(roomSharing !== null && { roomSharing: roomSharing === 'true' }),
       ...(gender && { gender }),
       ...(religion && { religion }),
-      ...(maxPrice || minPrice) && {
+      ...((maxPrice || minPrice) && {
         price: {
           ...(maxPrice && { lte: parseFloat(maxPrice) }),
           ...(minPrice && { gte: parseFloat(minPrice) })
         }
-      }
+      })
     }
     
     const properties = await prisma.property.findMany({
@@ -158,8 +159,8 @@ export async function GET(request) {
       }
     })
     
-    // Calculate average ratings
-    const propertiesWithRatings = properties.map(property => {
+    // Calculate average ratings and filter by minimum rating if specified
+    let propertiesWithRatings = properties.map(property => {
       // Calculate average rating
       const totalRating = property.reviews.reduce((sum, review) => sum + review.rating, 0)
       const averageRating = property.reviews.length > 0 
@@ -172,10 +173,18 @@ export async function GET(request) {
       return {
         ...propertyWithoutReviews,
         averageRating,
-        // Optionally include review count
+        // Include review count
         reviewCount: property._count.reviews
       }
     })
+    
+    // Apply minimum rating filter on the processed data
+    if (minRating) {
+      const minRatingValue = parseFloat(minRating)
+      propertiesWithRatings = propertiesWithRatings.filter(
+        property => property.averageRating >= minRatingValue
+      )
+    }
     
     return NextResponse.json(propertiesWithRatings)
   } catch (error) {
