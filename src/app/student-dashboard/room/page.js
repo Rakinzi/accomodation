@@ -15,13 +15,28 @@ import {
     CreditCard,
     Receipt,
     AlertCircle,
+    LogOut
 } from "lucide-react"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 export default function Room() {
     const { data: session, status } = useSession()
     const [allocation, setAllocation] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
     const [currentDateTime, setCurrentDateTime] = useState("")
+    const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
+    const [isLeaving, setIsLeaving] = useState(false)
 
     useEffect(() => {
         if (status === "authenticated" && session?.user?.id) {
@@ -47,18 +62,58 @@ export default function Room() {
 
             const response = await fetch(`/api/allocations/student/${session.user.id}`)
 
+            // Handle not found as a normal state, not an error
+            if (response.status === 404) {
+                setAllocation(null)
+                setLoading(false)
+                return
+            }
+
             if (!response.ok) {
                 const errorData = await response.json()
                 console.error('Server error:', errorData)
-                throw new Error('Failed to fetch allocation')
+                throw new Error(errorData.message || 'Failed to fetch allocation')
             }
 
             const data = await response.json()
             setAllocation(data)
         } catch (error) {
             console.error('Failed to fetch allocation details:', error)
+            setError(error.message || "An error occurred while fetching your room details")
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleLeaveRoom = async () => {
+        if (!allocation) return
+        
+        setIsLeaving(true)
+        try {
+            const response = await fetch(`/api/allocations/leave`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    propertyId: allocation.property.id,
+                    occupantId: allocation.id
+                }),
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.message || 'Failed to leave room')
+            }
+
+            toast.success("Successfully left room")
+            setAllocation(null)
+        } catch (error) {
+            console.error('Error leaving room:', error)
+            toast.error(error.message || "Failed to leave room")
+        } finally {
+            setIsLeaving(false)
+            setLeaveDialogOpen(false)
         }
     }
 
@@ -115,7 +170,32 @@ export default function Room() {
                     </CardContent>
                 </Card>
 
-                {!allocation ? (
+                {/* Error State */}
+                {error && (
+                    <Card className="border-none shadow-md bg-white/50 backdrop-blur-sm dark:bg-zinc-800/50">
+                        <CardContent className="p-12">
+                            <div className="text-center space-y-4">
+                                <AlertCircle className="h-12 w-12 mx-auto text-red-500" />
+                                <p className="text-xl font-medium text-red-600 dark:text-red-400">
+                                    {error}
+                                </p>
+                                <Button 
+                                    onClick={() => {
+                                        setError(null);
+                                        setLoading(true);
+                                        fetchAllocationDetails();
+                                    }}
+                                    variant="outline"
+                                >
+                                    Try Again
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* No Allocation State */}
+                {!error && !allocation && (
                     <Card className="border-none shadow-md bg-white/50 backdrop-blur-sm dark:bg-zinc-800/50">
                         <CardContent className="p-12">
                             <div className="text-center space-y-4">
@@ -123,11 +203,33 @@ export default function Room() {
                                 <p className="text-xl font-medium text-zinc-600 dark:text-zinc-400">
                                     No active room allocation found
                                 </p>
+                                <p className="text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
+                                    You currently don&apos;t have any active room allocations. Please contact your landlord if you believe this is incorrect.
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
-                ) : (
+                )}
+
+                {/* Allocation Details */}
+                {!error && allocation && (
                     <>
+                        {/* Action Bar - Leave Room Button at the Top */}
+                        <Card className="border-none shadow-md bg-white/50 backdrop-blur-sm dark:bg-zinc-800/50">
+                            <CardContent className="p-4">
+                                <div className="flex justify-end">
+                                    <Button 
+                                        variant="destructive" 
+                                        onClick={() => setLeaveDialogOpen(true)}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Leave Room
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        
                         {/* Property Details Grid */}
                         <div className="grid gap-6 md:grid-cols-2">
                             {/* Property Card */}
@@ -162,7 +264,7 @@ export default function Room() {
                                     <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
                                         <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Amenities</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {allocation.property.amenities.map((amenity, index) => (
+                                            {Array.isArray(allocation.property.amenities) && allocation.property.amenities.map((amenity, index) => (
                                                 <Badge
                                                     key={index}
                                                     className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 rounded-full"
@@ -195,9 +297,9 @@ export default function Room() {
                                             </Badge>
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Rooms</p>
+                                            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Room Number</p>
                                             <p className="text-2xl font-bold mt-1 text-zinc-800 dark:text-zinc-200">
-                                                {allocation.numberOfRooms}
+                                                {allocation.roomNumber}
                                             </p>
                                         </div>
                                     </div>
@@ -214,6 +316,14 @@ export default function Room() {
                                             </div>
                                         </div>
                                     </div>
+                                    {allocation.property.roomSharing && (
+                                        <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 space-y-2">
+                                            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Room Sharing</p>
+                                            <Badge className="px-3 py-1 bg-purple-500/10 text-purple-600 dark:bg-purple-400/10 dark:text-purple-400 rounded-full">
+                                                {allocation.property.tenantsPerRoom} tenants per room
+                                            </Badge>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </div>
@@ -243,6 +353,35 @@ export default function Room() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Leave Room Confirmation Dialog */}
+                        <AlertDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure you want to leave this room?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action will end your occupancy and notify the landlord. You may not be able to get the same room back if you change your mind.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isLeaving}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleLeaveRoom}
+                                        disabled={isLeaving}
+                                        className="bg-red-500 hover:bg-red-600"
+                                    >
+                                        {isLeaving ? (
+                                            <>
+                                                <LoadingSpinner className="mr-2 h-4 w-4" />
+                                                Leaving...
+                                            </>
+                                        ) : (
+                                            "Confirm Leave"
+                                        )}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </>
                 )}
             </div>

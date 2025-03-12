@@ -23,7 +23,8 @@ import {
   Building2,
   MessageSquare,
   Menu,
-  BarChart3
+  BarChart3,
+  BellIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSession } from "next-auth/react"
@@ -54,6 +55,7 @@ export function Navbar() {
     { href: "/dashboard/properties", icon: Building2, label: "Properties" },
     { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
     { href: "/dashboard/messages", icon: MessageSquare, label: "Messages" },
+    { href: "/dashboard/notifications", icon: BellIcon, label: "Notifications" },
   ]
 
   return (

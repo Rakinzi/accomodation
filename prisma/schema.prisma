@@ -12,37 +12,54 @@ model User {
   name                  String?
   email                 String         @unique
   password              String
-  userType             UserType       @default(STUDENT)
-  religion             Religion?
-  gender               Gender?
+  userType              UserType       @default(STUDENT)
+  religion              Religion?
+  gender                Gender?
   // Relations
-  properties           Property[]     @relation("OwnerProperties")
-  occupancies          Occupant[]     @relation("UserOccupancies")
-  sentMessages         Message[]      @relation("SentMessages")
-  studentConversations Conversation[] @relation("StudentConversations")
+  properties            Property[]     @relation("OwnerProperties")
+  occupancies           Occupant[]     @relation("UserOccupancies")
+  sentMessages          Message[]      @relation("SentMessages")
+  studentConversations  Conversation[] @relation("StudentConversations")
   landlordConversations Conversation[] @relation("LandlordConversations")
   // Timestamps
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   @@map("users")
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  type        String    // e.g. TENANT_LEFT, PAYMENT_RECEIVED, etc.
+  title       String
+  message     String    @db.Text
+  read        Boolean   @default(false)
+  metadata    String?   @db.Text  // JSON string with additional data (propertyId, studentName, etc.)
+  recipientId String?   // Optional direct recipient (usually landlord ID)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([recipientId])
+  @@index([read])
+  @@map("notifications")
 }
 
 model Property {
   id                String         @id @default(cuid())
   price             Float
-  deposit           Float         @default(0) // Added deposit field
+  deposit           Float         @default(0)
   location          String
   bedrooms          Int
   bathrooms         Int
   description       String         @db.Text
-  amenities         String         @db.Text // JSON string of amenities
+  amenities         String         @db.Text
   status            PropertyStatus @default(AVAILABLE)
-  // Sharing preferences
-  sharing           Boolean        @default(false)
+  // Room sharing preferences
+  roomSharing       Boolean        @default(false)
+  tenantsPerRoom    Int           @default(1)
   gender            Gender         @default(ANY)
   religion          Religion       @default(ANY)
-  maxOccupants      Int           @default(1)
   currentOccupants  Int           @default(0)
   // Relations
   owner             User           @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
@@ -56,35 +73,36 @@ model Property {
 
   @@map("properties")
   @@index([ownerId])
-  @@index([status, sharing, gender, religion])
+  @@index([status, roomSharing, gender, religion])
 }
 
 model Occupant {
-  id             String         @id @default(cuid())
+  id            String         @id @default(cuid())
   // Relations
-  user           User           @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
-  userId         String
-  property       Property       @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId     String
+  user          User           @relation("UserOccupancies", fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  property      Property       @relation("PropertyOccupants", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId    String
   // Occupancy details
-  startDate      DateTime       @default(now())
-  endDate        DateTime?
-  status         OccupantStatus @default(ACTIVE)
+  startDate     DateTime       @default(now())
+  endDate       DateTime?
+  status        OccupantStatus @default(ACTIVE)
   // Room allocation
-  numberOfRooms  Int           @default(1)
-  totalPrice     Float
+  roomNumber    Int // Changed from numberOfRooms
+  totalPrice    Float
   // Deposit tracking
-  depositPaid    Float         @default(0)
-  depositStatus  DepositStatus @default(PENDING)
-  depositPaidAt  DateTime?
+  depositPaid   Float          @default(0)
+  depositStatus DepositStatus  @default(PENDING)
+  depositPaidAt DateTime?
   // Timestamps
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  @@map("occupants")
+  @@unique([userId, propertyId, status])
   @@index([userId])
   @@index([propertyId])
-  @@unique([userId, propertyId, status])
+  @@index([roomNumber])
+  @@map("occupants")
 }
 
 model Image {
@@ -94,27 +112,27 @@ model Image {
   propertyId String
   createdAt  DateTime @default(now())
 
-  @@map("images")
   @@index([propertyId])
+  @@map("images")
 }
 
 model Conversation {
-  id          String    @id @default(cuid())
-  student     User      @relation("StudentConversations", fields: [studentId], references: [id], onDelete: Cascade)
-  studentId   String
-  landlord    User      @relation("LandlordConversations", fields: [landlordId], references: [id], onDelete: Cascade)
-  landlordId  String
-  property    Property  @relation("PropertyConversations", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId  String
-  messages    Message[] @relation("ConversationMessages")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  student    User      @relation("StudentConversations", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId  String
+  landlord   User      @relation("LandlordConversations", fields: [landlordId], references: [id], onDelete: Cascade)
+  landlordId String
+  property   Property  @relation("PropertyConversations", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  messages   Message[] @relation("ConversationMessages")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([studentId, landlordId, propertyId])
-  @@map("conversations")
   @@index([studentId])
   @@index([landlordId])
   @@index([propertyId])
+  @@map("conversations")
 }
 
 model Message {
@@ -127,9 +145,9 @@ model Message {
   isRead         Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
-  @@map("messages")
   @@index([senderId])
   @@index([conversationId])
+  @@map("messages")
 }
 
 enum PropertyStatus {

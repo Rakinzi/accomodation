@@ -83,19 +83,26 @@ export default function MessagesPage() {
       setIsCheckingAllocation(false);
     }
   };
-
   const handleUnallocate = async () => {
     if (!selectedStudent) return
-
+  
     try {
-      const response = await fetch(`/api/properties/${selectedStudent.property.id}/occupants/${selectedStudent.partner.id}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/properties/unallocate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          propertyId: selectedStudent.property.id,
+          userId: selectedStudent.partner.id
+        })
       })
-
+  
       if (!response.ok) {
-        throw new Error('Failed to unallocate rooms')
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to unallocate rooms')
       }
-
+  
       setIsAllocated(false)
       toast.success("Rooms unallocated successfully")
     } catch (error) {
@@ -103,7 +110,6 @@ export default function MessagesPage() {
       toast.error(error.message || "Failed to unallocate rooms")
     }
   }
-
   const handleAllocation = async (data) => {
     setShowAllocationDialog(false)
     if (data) {
