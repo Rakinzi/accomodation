@@ -142,6 +142,15 @@ export async function GET(request) {
               }
             }
           }
+        },
+        // Include reviews for rating calculation
+        reviews: {
+          select: {
+            rating: true
+          }
+        },
+        _count: {
+          select: { reviews: true }
         }
       },
       orderBy: {
@@ -149,7 +158,26 @@ export async function GET(request) {
       }
     })
     
-    return NextResponse.json(properties)
+    // Calculate average ratings
+    const propertiesWithRatings = properties.map(property => {
+      // Calculate average rating
+      const totalRating = property.reviews.reduce((sum, review) => sum + review.rating, 0)
+      const averageRating = property.reviews.length > 0 
+        ? Number((totalRating / property.reviews.length).toFixed(1))
+        : 0
+
+      // Destructure to remove reviews from the final object
+      const { reviews, ...propertyWithoutReviews } = property
+
+      return {
+        ...propertyWithoutReviews,
+        averageRating,
+        // Optionally include review count
+        reviewCount: property._count.reviews
+      }
+    })
+    
+    return NextResponse.json(propertiesWithRatings)
   } catch (error) {
     console.error('[PROPERTIES_GET]', error)
     return NextResponse.json(

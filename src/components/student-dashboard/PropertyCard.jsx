@@ -1,9 +1,15 @@
 "use client"
-
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Carousel } from "@/components/dashboard/Carousel"
-import { BedSingleIcon, ShowerHead, MapPinIcon, Users2Icon, DollarSign } from "lucide-react" // Add DollarSign
+import { 
+  BedSingleIcon, 
+  ShowerHead, 
+  MapPinIcon, 
+  Users2Icon, 
+  DollarSign, 
+  Star 
+} from "lucide-react"
 import Link from "next/link"
 
 export function PropertyCard({ property }) {
@@ -11,7 +17,7 @@ export function PropertyCard({ property }) {
     id,
     images,
     price,
-    deposit, // Add this
+    deposit,
     location,
     bedrooms,
     bathrooms,
@@ -21,8 +27,31 @@ export function PropertyCard({ property }) {
     religion,
     currentOccupants,
     maxOccupants,
-    status
+    status,
+    _count, // Assuming this contains review count
+    averageRating // Assuming this is added from backend calculation
   } = property
+
+  // Render star rating
+  const renderStars = (rating) => {
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star 
+            key={star} 
+            className={`h-4 w-4 ${
+              rating >= star 
+                ? 'fill-yellow-400 text-yellow-400' 
+                : 'text-zinc-300'
+            }`} 
+          />
+        ))}
+        <span className="text-xs text-zinc-500 ml-1">
+          ({_count?.reviews || 0})
+        </span>
+      </div>
+    )
+  }
 
   return (
     <Link href={`/student-dashboard/property/${id}`} className="block">
@@ -30,13 +59,14 @@ export function PropertyCard({ property }) {
         <div className="relative aspect-[4/3]">
           <Carousel images={images} interval={5000} />
         </div>
-
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold truncate">{location}</h3>
+            <div className="flex flex-col">
+              <h3 className="font-semibold truncate">{location}</h3>
+              {averageRating !== undefined && renderStars(averageRating)}
+            </div>
             <Badge className="bg-sky-500">{status}</Badge>
           </div>
-
           {/* Price and Deposit Section */}
           <div className="space-y-1">
             <p className="text-2xl font-bold text-sky-500">
@@ -49,9 +79,7 @@ export function PropertyCard({ property }) {
                 {deposit.toLocaleString()} deposit required
               </span>
             </p>
-
           </div>
-
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center gap-1">
               <BedSingleIcon className="h-4 w-4 text-zinc-500" />
@@ -72,7 +100,6 @@ export function PropertyCard({ property }) {
               </div>
             )}
           </div>
-
           {sharing && (
             <div className="flex gap-2 text-xs">
               {gender !== 'ANY' && (
@@ -83,7 +110,6 @@ export function PropertyCard({ property }) {
               )}
             </div>
           )}
-
           <div className="flex flex-wrap gap-1">
             {amenities.slice(0, 3).map((amenity) => (
               <Badge

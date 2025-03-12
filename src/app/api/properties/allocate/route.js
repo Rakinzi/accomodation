@@ -130,10 +130,10 @@ export async function POST(request) {
             )
         }
 
-        // Relaxed gender compatibility check
-        if (property.gender !== 'ANY' && roomOccupants.length > 0) {
+        // STRICT gender compatibility check - must match exactly if both have values
+        if (roomOccupants.length > 0) {
             const existingGender = roomOccupants[0].user.gender
-            // Only check if both genders are specified
+            // Check if both genders are specified and they don't match
             if (existingGender && student.gender && existingGender !== student.gender) {
                 return NextResponse.json(
                     { message: `Cannot allocate: Gender incompatibility with current room occupants (${existingGender.toLowerCase()})` },
@@ -142,10 +142,10 @@ export async function POST(request) {
             }
         }
 
-        // Relaxed religion compatibility check
-        if (property.religion !== 'ANY' && roomOccupants.length > 0) {
+        // STRICT religion compatibility check - must match exactly if both have values
+        if (roomOccupants.length > 0) {
             const existingReligion = roomOccupants[0].user.religion
-            // Only check if both religions are specified
+            // Check if both religions are specified and they don't match
             if (existingReligion && student.religion && existingReligion !== student.religion) {
                 return NextResponse.json(
                     { message: `Cannot allocate: Religion incompatibility with current room occupants (${existingReligion.toLowerCase()})` },

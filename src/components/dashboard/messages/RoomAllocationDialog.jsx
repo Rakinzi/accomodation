@@ -98,19 +98,17 @@ export function RoomAllocationDialog({
                         // If it's a shared room with space, check compatibility
                         let compatible = true;
                         
-                        // Basic compatibility check
+                        // Strict compatibility check
                         const firstOccupant = roomOcc[0]?.user;
                         if (firstOccupant) {
-                            // Skip if gender requirements don't match
-                            if (propertyData.gender !== 'ANY' && 
-                                firstOccupant.gender && userData.gender && 
+                            // Check gender compatibility - MUST match if both specified
+                            if (firstOccupant.gender && userData.gender && 
                                 firstOccupant.gender !== userData.gender) {
                                 compatible = false;
                             }
                             
-                            // Skip if religion requirements don't match
-                            if (propertyData.religion !== 'ANY' && 
-                                firstOccupant.religion && userData.religion && 
+                            // Check religion compatibility - MUST match if both specified
+                            if (firstOccupant.religion && userData.religion && 
                                 firstOccupant.religion !== userData.religion) {
                                 compatible = false;
                             }
@@ -144,7 +142,7 @@ export function RoomAllocationDialog({
         }
     }, [isOpen, property.id, user, onClose])
     
-    // Check compatibility whenever room number changes
+    // Check compatibility whenever room number changes - STRICT COMPATIBILITY CHECK
     useEffect(() => {
         if (!propertyDetails || !roomOccupants || !fullUserData || !roomNumber) return
         
@@ -169,16 +167,16 @@ export function RoomAllocationDialog({
             issues.push(`Room is at full capacity (${propertyDetails.tenantsPerRoom} occupants)`)
         }
         
-        // Check gender compatibility 
+        // STRICT gender compatibility - ANY difference is an issue
         const firstOccupantGender = currentOccupants[0]?.user?.gender
-        if (propertyDetails.gender !== 'ANY' && firstOccupantGender && fullUserData.gender && 
+        if (firstOccupantGender && fullUserData.gender && 
             firstOccupantGender !== fullUserData.gender) {
             issues.push(`Gender mismatch: Room has ${firstOccupantGender.toLowerCase()} occupants`)
         }
         
-        // Check religion compatibility
+        // STRICT religion compatibility - ANY difference is an issue
         const firstOccupantReligion = currentOccupants[0]?.user?.religion
-        if (propertyDetails.religion !== 'ANY' && firstOccupantReligion && fullUserData.religion && 
+        if (firstOccupantReligion && fullUserData.religion && 
             firstOccupantReligion !== fullUserData.religion) {
             issues.push(`Religion mismatch: Room has ${firstOccupantReligion.toLowerCase()} occupants`)
         }
