@@ -70,6 +70,9 @@ model Property {
   price            Float
   deposit          Float          @default(0)
   location         String
+  // Add new coordinates fields
+  latitude         Float?
+  longitude        Float?
   bedrooms         Int
   bathrooms        Int
   description      String         @db.Text
@@ -84,7 +87,7 @@ model Property {
   // Relations
   owner            User           @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId          String
-  images           Image[]        @relation("PropertyImages")
+  media            Media[]        @relation("PropertyMedia") // New relation to media
   occupants        Occupant[]     @relation("PropertyOccupants")
   conversations    Conversation[] @relation("PropertyConversations")
   reviews          Review[]
@@ -95,6 +98,19 @@ model Property {
   @@index([ownerId])
   @@index([status, roomSharing, gender, religion])
   @@map("properties")
+}
+
+// New model for property media (images and videos)
+model Media {
+  id         String   @id @default(cuid())
+  url        String
+  type       String   // 'image' or 'video'
+  property   Property @relation("PropertyMedia", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+  @@map("property_media")
 }
 
 model Occupant {
@@ -124,17 +140,6 @@ model Occupant {
   @@index([propertyId])
   @@index([roomNumber])
   @@map("occupants")
-}
-
-model Image {
-  id         String   @id @default(cuid())
-  url        String
-  property   Property @relation("PropertyImages", fields: [propertyId], references: [id], onDelete: Cascade)
-  propertyId String
-  createdAt  DateTime @default(now())
-
-  @@index([propertyId])
-  @@map("images")
 }
 
 model Conversation {

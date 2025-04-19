@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ContactDialog } from "./ContactDialog"
-import { PropertyReviews } from "./PropertyReviews" // Import the new Reviews component
+import { PropertyReviews } from "./PropertyReviews" 
+import { VideoPlayer } from "@/components/ui/video-player" // Import the video player
 import {
     HeartIcon,
     BedSingleIcon,
@@ -23,7 +24,10 @@ import {
     PauseIcon,
     MessageSquareIcon,
     DollarSign,
-    Star // Added for reviews
+    Star,
+    Image as ImageIcon,
+    Video as VideoIcon,
+    Map
 } from "lucide-react"
 import Image from "next/image"
 import { useState, useEffect } from "react"
@@ -35,14 +39,15 @@ import { useSession } from "next-auth/react"
 export function PropertyDetails({ id }) {
     const { data: session } = useSession()
     const router = useRouter()
-    const [selectedImage, setSelectedImage] = useState(0)
+    const [selectedMedia, setSelectedMedia] = useState(0)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [property, setProperty] = useState(null)
     const [showContact, setShowContact] = useState(false)
     const [isPlaying, setIsPlaying] = useState(true)
     const [slideInterval] = useState(5000)
-    const [activeTab, setActiveTab] = useState("details") // Added state for tracking active tab
+    const [activeTab, setActiveTab] = useState("details")
+    const [mapLoaded, setMapLoaded] = useState(false)
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -64,15 +69,67 @@ export function PropertyDetails({ id }) {
         if (id) fetchProperty()
     }, [id])
 
+    // Load map when the location tab is active
     useEffect(() => {
-        if (!isPlaying || !property?.images?.length) return
+        if (activeTab === 'location' && property && !mapLoaded) {
+            // Load Leaflet library
+            const loadMap = async () => {
+                // Load CSS
+                const linkEl = document.createElement('link')
+                linkEl.rel = 'stylesheet'
+                linkEl.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+                document.head.appendChild(linkEl)
+                
+                // Load JS
+                const script = document.createElement('script')
+                script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+                script.onload = () => {
+                    setMapLoaded(true)
+                    initMap()
+                }
+                document.head.appendChild(script)
+            }
+            
+            const initMap = () => {
+                if (!window.L || !property.latitude || !property.longitude) return
+                
+                // Initialize map
+                const mapElement = document.getElementById('property-map')
+                if (!mapElement) return
+                
+                const map = window.L.map(mapElement).setView([property.latitude, property.longitude], 15)
+                
+                // Add OpenStreetMap tiles
+                window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map)
+                
+                // Add marker
+                window.L.marker([property.latitude, property.longitude])
+                    .addTo(map)
+                    .bindPopup(property.location)
+                    .openPopup()
+            }
+            
+            loadMap()
+        }
+    }, [activeTab, property, mapLoaded])
+
+    useEffect(() => {
+        if (!isPlaying || !property?.media?.length) return
 
         const timer = setInterval(() => {
-            setSelectedImage((prev) => (prev + 1) % property.images.length)
+            setSelectedMedia((prev) => {
+                // Only auto-advance for images, not videos
+                const currentMediaType = property.media[prev]?.type
+                if (currentMediaType === 'video') return prev
+                
+                return (prev + 1) % property.media.length
+            })
         }, slideInterval)
 
         return () => clearInterval(timer)
-    }, [isPlaying, property?.images?.length, slideInterval])
+    }, [isPlaying, property?.media?.length, slideInterval])
 
     const handleShare = async () => {
         if (!property) return
@@ -123,6 +180,9 @@ export function PropertyDetails({ id }) {
     }
 
     const amenities = JSON.parse(property.amenities)
+    const currentMedia = property.media?.[selectedMedia]
+    const images = property.media?.filter(m => m.type === 'image') || []
+    const videos = property.media?.filter(m => m.type === 'video') || []
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-zinc-50/50 to-white dark:from-zinc-900/50 dark:to-zinc-900">
@@ -143,86 +203,53 @@ export function PropertyDetails({ id }) {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="relative group">
                             <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-                                <Image
-                                    src={property.images[selectedImage].url}
-                                    alt={`View ${selectedImage + 1}`}
-                                    fill
-                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                    priority
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-                                <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="bg-white/20 hover:bg-white/40 backdrop-blur-lg text-white"
-                                        onClick={() => {
-                                            setSelectedImage((prev) => (prev - 1 + property.images.length) % property.images.length)
-                                            setIsPlaying(false)
-                                        }}
-                                    >
-                                        <ChevronLeftIcon className="w-5 h-5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="bg-white/20 hover:bg-white/40 backdrop-blur-lg text-white"
-                                        onClick={() => {
-                                            setSelectedImage((prev) => (prev + 1) % property.images.length)
-                                            setIsPlaying(false)
-                                        }}
-                                    >
-                                        <ChevronRightIcon className="w-5 h-5" />
-                                    </Button>
-                                </div>
-
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute bottom-4 right-4 bg-white/20 hover:bg-white/40 backdrop-blur-lg text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => setIsPlaying(!isPlaying)}
-                                >
-                                    {isPlaying ? (
-                                        <PauseIcon className="w-5 h-5" />
-                                    ) : (
-                                        <PlayIcon className="w-5 h-5" />
-                                    )}
-                                </Button>
-
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                                    <div
-                                        className="h-full bg-sky-500 transition-all duration-[5000ms] ease-linear"
-                                        style={{
-                                            width: isPlaying ? '100%' : '0%',
-                                            transition: isPlaying ? 'width 5000ms linear' : 'none',
-                                            transform: `scaleX(${selectedImage / (property.images.length - 1)})`
-                                        }}
+                                {currentMedia?.type === 'video' ? (
+                                    <VideoPlayer src={currentMedia.url} />
+                                ) : (
+                                    <Image
+                                        src={currentMedia?.url || '/placeholder-image.jpg'}
+                                        alt={`View ${selectedMedia + 1}`}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                        priority
                                     />
-                                </div>
+                                )}
                             </AspectRatio>
 
                             <ScrollArea className="mt-4">
                                 <div className="flex gap-4">
-                                    {property.images.map((image, index) => (
+                                    {property.media?.map((media, index) => (
                                         <button
                                             key={index}
                                             onClick={() => {
-                                                setSelectedImage(index)
+                                                setSelectedMedia(index)
                                                 setIsPlaying(false)
                                             }}
                                             className={`relative flex-none w-20 aspect-video rounded-lg overflow-hidden transition-all
-                                                ${selectedImage === index
+                                                ${selectedMedia === index
                                                     ? 'ring-2 ring-sky-500 scale-95'
                                                     : 'ring-1 ring-zinc-200 hover:ring-sky-500/50'
                                                 }`}
                                         >
-                                            <Image
-                                                src={image.url}
-                                                alt={`Thumbnail ${index + 1}`}
-                                                fill
-                                                className="object-cover"
-                                            />
+                                            {media.type === 'video' ? (
+                                                <>
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                        <VideoIcon className="h-6 w-6 text-white" />
+                                                    </div>
+                                                    <video
+                                                        src={media.url}
+                                                        className="w-full h-full object-cover"
+                                                        muted
+                                                    />
+                                                </>
+                                            ) : (
+                                                <Image
+                                                    src={media.url}
+                                                    alt={`Thumbnail ${index + 1}`}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -230,10 +257,13 @@ export function PropertyDetails({ id }) {
                         </div>
 
                         <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="w-full grid grid-cols-4">
+                            <TabsList className="w-full grid grid-cols-5">
                                 <TabsTrigger value="details">Details</TabsTrigger>
                                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
-                                <TabsTrigger value="location">Location</TabsTrigger>
+                                <TabsTrigger value="location">Map</TabsTrigger>
+                                <TabsTrigger value="media">
+                                    All Media ({property.media?.length || 0})
+                                </TabsTrigger>
                                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
                             </TabsList>
                             <TabsContent value="details" className="mt-6">
@@ -242,7 +272,7 @@ export function PropertyDetails({ id }) {
                                         {property.description}
                                     </p>
 
-                                    {/* Add this pricing details section */}
+                                    {/* Pricing details section */}
                                     <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg">
                                         <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                                             <DollarSign className="w-5 h-5" />
@@ -257,7 +287,7 @@ export function PropertyDetails({ id }) {
                                                 <p className="text-sm text-zinc-500">Security Deposit</p>
                                                 <p className="font-medium">
                                                     {property.deposit > 0
-                                                        ? `${property.deposit.toLocaleString()}`
+                                                        ? `$${property.deposit.toLocaleString()}`
                                                         : "No deposit required"
                                                     }
                                                 </p>
@@ -288,6 +318,7 @@ export function PropertyDetails({ id }) {
                                     )}
                                 </div>
                             </TabsContent>
+                            
                             <TabsContent value="amenities" className="mt-6">
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {amenities.map((amenity, index) => (
@@ -299,13 +330,62 @@ export function PropertyDetails({ id }) {
                                     ))}
                                 </div>
                             </TabsContent>
+                            
                             <TabsContent value="location" className="mt-6">
-                                <div className="aspect-video rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                                    {/* Add Map Component Here */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <MapPinIcon className="h-5 w-5 text-sky-500" />
+                                        <p className="text-zinc-700 dark:text-zinc-300">{property.location}</p>
+                                    </div>
+                                    
+                                    <div className="aspect-video rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                                        <div id="property-map" className="h-full w-full"></div>
+                                    </div>
                                 </div>
                             </TabsContent>
                             
-                            {/* New Reviews Tab */}
+                            <TabsContent value="media" className="mt-6">
+                                <div className="space-y-6">
+                                    {videos.length > 0 && (
+                                        <div className="space-y-4">
+                                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                <VideoIcon className="h-5 w-5 text-sky-500" />
+                                                Videos ({videos.length})
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {videos.map((video, index) => (
+                                                    <div key={index} className="aspect-video bg-black rounded-lg overflow-hidden">
+                                                        <VideoPlayer src={video.url} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {images.length > 0 && (
+                                        <div className="space-y-4">
+                                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                <ImageIcon className="h-5 w-5 text-sky-500" />
+                                                Images ({images.length})
+                                            </h3>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                {images.map((image, index) => (
+                                                    <div key={index} className="aspect-video rounded-lg overflow-hidden relative">
+                                                        <Image
+                                                            src={image.url}
+                                                            alt={`Property image ${index + 1}`}
+                                                            fill
+                                                            className="object-cover"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </TabsContent>
+                            
+                            {/* Reviews Tab */}
                             <TabsContent value="reviews" className="mt-6">
                                 <PropertyReviews propertyId={id} />
                             </TabsContent>

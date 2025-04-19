@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,16 +16,94 @@ import {
   SearchIcon, 
   FilterIcon,
   Users2Icon,
-  StarIcon
+  StarIcon,
+  MapPinIcon,
+  Navigation,
+  Loader2
 } from "lucide-react"
+import { toast } from "sonner"
 
 export function FilterBar({ onFiltersChange }) {
   const [location, setLocation] = useState("")
+  const [userLocation, setUserLocation] = useState(null)
+  const [usingCurrentLocation, setUsingCurrentLocation] = useState(false)
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [radius, setRadius] = useState(5) // Default radius in kilometers
   const [priceRange, setPriceRange] = useState([0, 500])
   const [sharing, setSharing] = useState(false)
   const [gender, setGender] = useState("ANY")
   const [religion, setReligion] = useState("ANY")
   const [minRating, setMinRating] = useState("0")
+
+  // Get user's location when component mounts
+  useEffect(() => {
+    // Check if browser supports geolocation
+    if (!navigator.geolocation) {
+      console.log("Geolocation is not supported by this browser.")
+      return
+    }
+
+    // Get current position if user has enabled "use my location"
+    if (usingCurrentLocation && !userLocation) {
+      getCurrentLocation()
+    }
+  }, [usingCurrentLocation, userLocation])
+
+  const getCurrentLocation = () => {
+    setIsGettingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        setUserLocation({ lat: latitude, lng: longitude })
+        
+        // Reverse geocode to get address
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.display_name) {
+              setLocation(data.display_name)
+            }
+          })
+          .catch(error => {
+            console.error("Error getting address:", error)
+            setLocation(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`)
+          })
+          .finally(() => {
+            setIsGettingLocation(false)
+          })
+      },
+      (error) => {
+        console.error("Error getting location:", error)
+        setIsGettingLocation(false)
+        setUsingCurrentLocation(false)
+        
+        let errorMessage = "Could not get your location"
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "You need to allow location access to use this feature"
+            break
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable"
+            break
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out"
+            break
+        }
+        toast.error(errorMessage)
+      }
+    )
+  }
+
+  const toggleLocationUsage = () => {
+    const newValue = !usingCurrentLocation
+    setUsingCurrentLocation(newValue)
+    
+    if (!newValue) {
+      // Clear location data when turning off
+      setUserLocation(null)
+      setLocation("")
+    }
+  }
 
   const formatPrice = (value) => `$${value.toLocaleString()}`
 
@@ -37,25 +115,67 @@ export function FilterBar({ onFiltersChange }) {
       sharing: sharing || undefined,
       gender: gender !== "ANY" ? gender : undefined,
       religion: religion !== "ANY" ? religion : undefined,
-      minRating: minRating !== "0" ? parseFloat(minRating) : undefined
+      minRating: minRating !== "0" ? parseFloat(minRating) : undefined,
+      // Include location coordinates and radius if using current location
+      ...(usingCurrentLocation && userLocation && {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        radius: radius
+      })
     })
   }
 
   return (
     <div className="bg-white/50 backdrop-blur-lg border rounded-xl p-6 shadow-lg">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {/* Search Location */}
+        {/* Location Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Location</label>
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 
-              placeholder="Search city or area" 
+              placeholder={usingCurrentLocation ? "Using your location" : "Search city or area"} 
               className="pl-9 bg-white"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              disabled={usingCurrentLocation}
             />
           </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Switch 
+                checked={usingCurrentLocation}
+                onCheckedChange={toggleLocationUsage}
+                disabled={isGettingLocation}
+              />
+              <span className="text-xs text-gray-600">Use my location</span>
+            </div>
+            
+            {isGettingLocation && (
+              <div className="flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin text-sky-500" />
+                <span className="text-xs text-sky-500">Getting location...</span>
+              </div>
+            )}
+          </div>
+          
+          {usingCurrentLocation && userLocation && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-700">Search Radius</label>
+              <div className="flex items-center gap-3">
+                <Slider
+                  value={[radius]}
+                  onValueChange={(values) => setRadius(values[0])}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-xs font-medium w-12 text-right">{radius} km</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Price Range */}

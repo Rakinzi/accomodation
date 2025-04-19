@@ -23,25 +23,34 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useState, useRef, useEffect } from "react"
-import { ImageUpload } from "./ImageUpload"
+import { MediaUpload } from "./MediaUpload" // Updated to MediaUpload
+import { MapSelector } from "./MapSelector" // New MapSelector component
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "./Command"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { X } from "lucide-react"
+import { X, PlusCircle } from "lucide-react"
+import { LoadingSpinner } from "./LoadingSpinner"
 
 const formSchema = z.object({
   price: z.string().min(1, "Price is required"),
   deposit: z.string().min(1, "Deposit amount is required"),
-  location: z.string().min(1, "Location is required"),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    address: z.string().min(1, "Address is required")
+  }).refine(data => data.lat !== 0 || data.lng !== 0, {
+    message: "Please select a location on the map",
+    path: ["address"]
+  }),
   bedrooms: z.string().min(1, "Number of bedrooms is required"),
   bathrooms: z.string().min(1, "Number of bathrooms is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
   // Room sharing preferences
-  roomSharing: z.boolean().default(false), // Changed from sharing
+  roomSharing: z.boolean().default(false),
   tenantsPerRoom: z.string().min(1, "Number of tenants per room is required"),
   gender: z.enum(["MALE", "FEMALE", "ANY"]).default("ANY"),
-  religion: z.enum(["CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "ANY", "OTHER"]).default("ANY"),
+  religion: z.enum(["CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "ANY", "OTHER"]).default("ANY")
 })
 
 const amenitiesSuggestions = [
@@ -62,24 +71,25 @@ const amenitiesSuggestions = [
 
 export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
   const commandRef = useRef(null)
-  const [images, setImages] = useState([])
+  const [media, setMedia] = useState([]) // Changed from images to media
   const [amenityInput, setAmenityInput] = useState("")
   const [error, setError] = useState("")
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [roomSharing, setRoomSharing] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       price: "",
-      location: "",
+      location: { lat: 0, lng: 0, address: "" },
       bedrooms: "",
       bathrooms: "",
       description: "",
       amenities: [],
       deposit: "",
       // Room sharing preferences
-      roomSharing: false, // Changed from sharing
+      roomSharing: false,
       tenantsPerRoom: "1",
       gender: "ANY",
       religion: "ANY"
@@ -120,6 +130,14 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
   }, [])
 
   const onSubmit = async (data) => {
+    if (media.length === 0) {
+      setError("Please upload at least one image or video")
+      return
+    }
+
+    setSubmitting(true)
+    setError("")
+
     try {
       const response = await fetch("/api/properties", {
         method: "POST",
@@ -128,18 +146,29 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
         },
         body: JSON.stringify({
           ...data,
-          images: images.map(image => ({ url: image.url }))
+          // Include location coordinates and address
+          latitude: data.location.lat,
+          longitude: data.location.lng,
+          location: data.location.address,
+          // Include media with type information
+          media: media.map(item => ({
+            url: item.url,
+            type: item.type
+          }))
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create property")
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create property")
       }
 
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
-      setError("Failed to create property")
+      setError(error.message || "Failed to create property")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -154,15 +183,35 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-4">
-                {/* Image Upload */}
+                {/* Media Upload (Images & Videos) */}
                 <div className="space-y-2">
-                  <Label>Property Images</Label>
-                  <ImageUpload
-                    value={images}
-                    onChange={setImages}
-                    maxFiles={5}
+                  <Label>Property Media (Images & Videos)</Label>
+                  <MediaUpload
+                    value={media}
+                    onChange={setMedia}
+                    maxFiles={8}
                   />
+                  <p className="text-xs text-zinc-500">
+                    Upload up to 8 files. Add at least one image. Videos can be up to 50MB each.
+                  </p>
                 </div>
+
+                {/* Map Location Selector */}
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <MapSelector
+                        value={field.value}
+                        onChange={field.onChange}
+                        required={true}
+                        label="Property Location"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 {/* Basic Details */}
                 <div className="grid grid-cols-2 gap-4">
@@ -171,7 +220,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price (per month)</FormLabel>
+                        <FormLabel>Price per Month</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="$0.00"
@@ -189,7 +238,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                     name="deposit"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Deposit Amount</FormLabel>
+                        <FormLabel>Security Deposit</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="$0.00"
@@ -200,23 +249,6 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                         <FormDescription>
                           Required security deposit amount
                         </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="City, Area"
-                            {...field}
-                          />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -403,10 +435,20 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                   type="button"
                   variant="outline"
                   onClick={() => onOpenChange(false)}
+                  disabled={submitting}
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Add Property</Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <LoadingSpinner className="mr-2" />
+                      Adding Property...
+                    </>
+                  ) : (
+                    'Add Property'
+                  )}
+                </Button>
               </div>
             </form>
           </Form>
