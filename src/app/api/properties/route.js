@@ -31,7 +31,7 @@ export async function POST(request) {
     } = body
 
     // Validate required fields
-    if (!price || !location || !latitude || !longitude || !bedrooms || !bathrooms || !description || !amenities || !media) {
+    if (!price || !location || !bedrooms || !bathrooms || !description || !amenities || !media) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
     }
 
@@ -44,13 +44,13 @@ export async function POST(request) {
       data: {
         price: parseFloat(price),
         location,
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: parseFloat(latitude || 0),
+        longitude: parseFloat(longitude || 0),
         bedrooms: parseInt(bedrooms),
         bathrooms: parseInt(bathrooms),
         description,
         amenities: JSON.stringify(amenities),
-        deposit: parseFloat(deposit),
+        deposit: parseFloat(deposit || 0),
         // Room sharing preferences
         roomSharing: Boolean(roomSharing),
         tenantsPerRoom: parseInt(tenantsPerRoom),
@@ -67,7 +67,7 @@ export async function POST(request) {
         media: {
           create: media.map(item => ({
             url: item.url,
-            type: item.type
+            type: item.type || 'image'
           }))
         }
       },
@@ -131,7 +131,7 @@ export async function GET(request) {
     const properties = await prisma.property.findMany({
       where,
       include: {
-        media: true, // Changed from images to media
+        media: true, // Include all media (images and videos)
         owner: {
           select: {
             id: true,

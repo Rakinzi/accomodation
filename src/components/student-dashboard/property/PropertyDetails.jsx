@@ -179,9 +179,16 @@ export function PropertyDetails({ id }) {
         )
     }
 
-    const amenities = JSON.parse(property.amenities)
+    // Parse amenities if it's a string
+    const amenities = typeof property.amenities === 'string' 
+        ? JSON.parse(property.amenities) 
+        : property.amenities
+    
     const currentMedia = property.media?.[selectedMedia]
-    const images = property.media?.filter(m => m.type === 'image') || []
+    const isCurrentMediaVideo = currentMedia?.type === 'video'
+    
+    // Filter media by type
+    const images = property.media?.filter(m => m.type === 'image' || !m.type) || []
     const videos = property.media?.filter(m => m.type === 'video') || []
 
     return (
@@ -203,7 +210,7 @@ export function PropertyDetails({ id }) {
                     <div className="lg:col-span-3 space-y-6">
                         <div className="relative group">
                             <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-                                {currentMedia?.type === 'video' ? (
+                                {isCurrentMediaVideo ? (
                                     <VideoPlayer src={currentMedia.url} />
                                 ) : (
                                     <Image

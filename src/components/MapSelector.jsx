@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Spinner } from '@/components/ui/spinner'
 import { MapPin, Navigation, Search, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -25,7 +24,7 @@ export function MapSelector({
   // Load Leaflet library dynamically as it requires access to the window object
   useEffect(() => {
     // Skip if already loaded
-    if (window.L) {
+    if (typeof window !== 'undefined' && window.L) {
       setMapLoaded(true)
       return
     }

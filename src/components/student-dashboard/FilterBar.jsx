@@ -22,6 +22,7 @@ import {
   Loader2
 } from "lucide-react"
 import { toast } from "sonner"
+import { getCurrentPosition, getAddressFromCoordinates } from "@/lib/locationUtils"
 
 export function FilterBar({ onFiltersChange }) {
   const [location, setLocation] = useState("")
@@ -49,49 +50,27 @@ export function FilterBar({ onFiltersChange }) {
     }
   }, [usingCurrentLocation, userLocation])
 
-  const getCurrentLocation = () => {
+  const getCurrentLocation = async () => {
     setIsGettingLocation(true)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords
-        setUserLocation({ lat: latitude, lng: longitude })
-        
-        // Reverse geocode to get address
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.display_name) {
-              setLocation(data.display_name)
-            }
-          })
-          .catch(error => {
-            console.error("Error getting address:", error)
-            setLocation(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`)
-          })
-          .finally(() => {
-            setIsGettingLocation(false)
-          })
-      },
-      (error) => {
-        console.error("Error getting location:", error)
-        setIsGettingLocation(false)
-        setUsingCurrentLocation(false)
-        
-        let errorMessage = "Could not get your location"
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "You need to allow location access to use this feature"
-            break
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information is unavailable"
-            break
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out"
-            break
-        }
-        toast.error(errorMessage)
+    try {
+      const position = await getCurrentPosition()
+      setUserLocation(position)
+      
+      // Try to get the address from coordinates
+      try {
+        const address = await getAddressFromCoordinates(position.lat, position.lng)
+        setLocation(address)
+      } catch (addressError) {
+        console.error("Error getting address:", addressError)
+        setLocation(`Lat: ${position.lat.toFixed(4)}, Lng: ${position.lng.toFixed(4)}`)
       }
-    )
+    } catch (error) {
+      console.error("Error getting location:", error)
+      toast.error(error.message || "Could not get your location")
+      setUsingCurrentLocation(false)
+    } finally {
+      setIsGettingLocation(false)
+    }
   }
 
   const toggleLocationUsage = () => {

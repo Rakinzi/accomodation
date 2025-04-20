@@ -6,6 +6,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useState, useRef } from "react"
+import { toast } from "sonner"
 
 export async function uploadMedia(file) {
   const formData = new FormData()
@@ -40,12 +41,36 @@ export function MediaUpload({ value = [], onChange, maxFiles = 8 }) {
       setIsUploading(true)
       setError("")
       
+      // Check if we would exceed max files
+      if (value.length + acceptedFiles.length > maxFiles) {
+        toast.error(`You can upload a maximum of ${maxFiles} files`)
+        setIsUploading(false)
+        return
+      }
+      
+      // Check file sizes
+      const oversizedFiles = acceptedFiles.filter(file => {
+        const isVideo = file.type.startsWith('video/')
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024
+        return file.size > maxSize
+      })
+      
+      if (oversizedFiles.length > 0) {
+        const isVideo = oversizedFiles[0].type.startsWith('video/')
+        const maxSizeMB = isVideo ? 50 : 5
+        toast.error(`Some files exceed the maximum size (${maxSizeMB}MB for ${isVideo ? 'videos' : 'images'})`)
+        setIsUploading(false)
+        return
+      }
+      
       const uploadPromises = acceptedFiles.map(uploadMedia)
       const newMedia = await Promise.all(uploadPromises)
       
-      onChange([...value, ...newMedia].slice(0, maxFiles))
+      onChange([...value, ...newMedia])
+      toast.success(`${newMedia.length} file${newMedia.length !== 1 ? 's' : ''} uploaded successfully`)
     } catch (error) {
       setError(error.message)
+      toast.error(error.message || "Upload failed")
       console.error("Upload failed:", error)
     } finally {
       setIsUploading(false)
@@ -65,14 +90,19 @@ export function MediaUpload({ value = [], onChange, maxFiles = 8 }) {
   const removeMedia = async (indexToRemove) => {
     const mediaToRemove = value[indexToRemove]
     const filename = mediaToRemove.url.split('/').pop()
-
+    
     try {
-      await fetch(`/api/upload/${filename}`, {
+      // Determine the media type (image or video) from the URL path
+      const folder = mediaToRemove.url.includes('/videos/') ? 'videos' : 'images'
+      
+      await fetch(`/api/upload/${folder}/${filename}`, {
         method: 'DELETE'
       })
       
       onChange(value.filter((_, index) => index !== indexToRemove))
+      toast.success("File removed")
     } catch (error) {
+      toast.error("Failed to delete file")
       console.error("Failed to delete media:", error)
     }
   }

@@ -23,13 +23,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useState, useRef, useEffect } from "react"
-import { MediaUpload } from "./MediaUpload" // Updated to MediaUpload
-import { MapSelector } from "./MapSelector" // New MapSelector component
-import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "./Command"
+import { MediaUpload } from "../MediaUpload" // Updated to MediaUpload
+import { MapSelector } from "../MapSelector" // New MapSelector component
+import { Command, CommandEmpty, CommandInput, CommandList,CommandItem } from "./Command"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { X, PlusCircle } from "lucide-react"
 import { LoadingSpinner } from "./LoadingSpinner"
+import { toast } from "sonner"
 
 const formSchema = z.object({
   price: z.string().min(1, "Price is required"),
@@ -135,6 +136,12 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
       return
     }
 
+    // Make sure there's at least one image (not just videos)
+    if (!media.some(item => item.type === 'image')) {
+      setError("Please upload at least one image")
+      return
+    }
+
     setSubmitting(true)
     setError("")
 
@@ -153,7 +160,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
           // Include media with type information
           media: media.map(item => ({
             url: item.url,
-            type: item.type
+            type: item.type || 'image'
           }))
         }),
       })
@@ -163,9 +170,11 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
         throw new Error(errorData.message || "Failed to create property")
       }
 
+      toast.success("Property created successfully!")
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
+      toast.error(error.message || "Failed to create property")
       setError(error.message || "Failed to create property")
     } finally {
       setSubmitting(false)

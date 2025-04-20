@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 
 export function PropertyCard({ property }) {
   const {
@@ -30,7 +30,7 @@ export function PropertyCard({ property }) {
     currentOccupants,
     tenantsPerRoom,
     status,
-    distanceInKm, // New field for distance from user
+    distanceInKm, // For distance from user
     _count, // For review count
     averageRating // From backend calculation
   } = property
@@ -164,21 +164,34 @@ export function PropertyCard({ property }) {
           )}
           
           <div className="flex flex-wrap gap-1">
-            {amenities.slice(0, 3).map((amenity) => (
+            {Array.isArray(amenities) ? (
+              amenities.slice(0, 3).map((amenity) => (
+                <Badge
+                  key={amenity}
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  {amenity}
+                </Badge>
+              ))
+            ) : (
+              typeof amenities === 'string' && JSON.parse(amenities).slice(0, 3).map((amenity) => (
+                <Badge
+                  key={amenity}
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  {amenity}
+                </Badge>
+              ))
+            )}
+            {(Array.isArray(amenities) && amenities.length > 3) || 
+             (typeof amenities === 'string' && JSON.parse(amenities).length > 3) && (
               <Badge
-                key={amenity}
                 variant="secondary"
                 className="text-xs"
               >
-                {amenity}
-              </Badge>
-            ))}
-            {amenities.length > 3 && (
-              <Badge
-                variant="secondary"
-                className="text-xs"
-              >
-                +{amenities.length - 3} more
+                +{(Array.isArray(amenities) ? amenities.length : JSON.parse(amenities).length) - 3} more
               </Badge>
             )}
           </div>

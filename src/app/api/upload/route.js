@@ -1,9 +1,10 @@
 // src/app/api/upload/route.js
 import { NextResponse } from "next/server"
-import { writeFile } from "fs/promises"
+import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
+import path from "path"
 
 export async function POST(request) {
   try {
@@ -49,10 +50,20 @@ export async function POST(request) {
     
     // Create path for the correct media type
     const folder = isVideo ? 'videos' : 'images'
-    const uploadFolder = join(process.cwd(), 'public', 'uploads', 'properties', folder)
-    const path = join(uploadFolder, filename)
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'properties', folder)
     
-    await writeFile(path, buffer)
+    // Ensure directory exists
+    try {
+      await mkdir(uploadDir, { recursive: true })
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        throw error
+      }
+    }
+    
+    const filePath = join(uploadDir, filename)
+    
+    await writeFile(filePath, buffer)
     const url = `/uploads/properties/${folder}/${filename}`
 
     return NextResponse.json({
@@ -63,5 +74,47 @@ export async function POST(request) {
   } catch (error) {
     console.error("Upload error:", error)
     return NextResponse.json({ error: "Upload failed" }, { status: 500 })
+  }
+}
+
+// Handle DELETE requests to remove uploaded files
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    
+    // Get the filename from the URL
+    const url = new URL(request.url)
+    const pathname = url.pathname
+    const parts = pathname.split('/')
+    const filename = parts[parts.length - 1]
+    const folder = parts[parts.length - 2] // 'images' or 'videos'
+    
+    if (!filename || !folder) {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+    }
+    
+    // Validate the folder is either 'images' or 'videos'
+    if (folder !== 'images' && folder !== 'videos') {
+      return NextResponse.json({ error: "Invalid folder" }, { status: 400 })
+    }
+    
+    // Security check: ensure filename only contains safe characters
+    if (!/^[a-zA-Z0-9-_.]+$/.test(filename)) {
+      return NextResponse.json({ error: "Invalid filename" }, { status: 400 })
+    }
+    
+    const filePath = join(process.cwd(), 'public', 'uploads', 'properties', folder, filename)
+    
+    const fs = require('fs/promises')
+    await fs.unlink(filePath)
+    
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Delete error:", error)
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 })
   }
 }
