@@ -1,23 +1,37 @@
 "use client"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { AspectRatio } from "@/components/ui/aspect-ratio"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import Image from "next/image"
-import {
-  BedSingleIcon,
-  ShowerHead as ShowerIcon,
-  MapPinIcon,
-  EditIcon,
+import { useState, useEffect } from "react"
+import { 
+  BedSingleIcon, 
+  ShowerHead, 
+  MapPinIcon, 
+  EditIcon, 
   TrashIcon,
   ImageIcon,
   DollarSign,
-  Star // Add Star import
+  Star,
+  Video as VideoIcon,
+  Users2Icon
 } from "lucide-react"
 import Link from "next/link"
 
 export function PropertyCard({ property, onDelete }) {
-  const amenities = JSON.parse(property.amenities)
+  // Safely access media/images with fallbacks
+  const mediaItems = property.media || property.images || [];
+  
+  // Parse amenities if it's a string
+  const amenities = typeof property.amenities === 'string' 
+    ? JSON.parse(property.amenities) 
+    : (property.amenities || []);
+
+  // Find the first image to use as the main card image
+  const mainImage = mediaItems.find(item => !item.type || item.type === 'image')?.url || '/placeholder-image.jpg';
+  
+  // Count videos
+  const videoCount = mediaItems.filter(item => item.type === 'video').length;
 
   // Render star rating
   const renderStars = (rating) => {
@@ -45,19 +59,13 @@ export function PropertyCard({ property, onDelete }) {
       <Link href={`/dashboard/properties/${property.id}`}>
         <div className="relative">
           <AspectRatio ratio={16 / 9}>
-            {property.images.length > 0 ? (
-              <Image
-                src={property.images[0].url}
-                alt={property.location}
-                fill
-                className="object-cover transition-transform group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center bg-zinc-100 dark:bg-zinc-800">
-                <ImageIcon className="h-10 w-10 text-zinc-400" />
-              </div>
-            )}
+            <Image
+              src={mainImage}
+              alt={property.location}
+              fill
+              className="object-cover transition-transform group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
           </AspectRatio>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <div className="flex justify-between items-center">
@@ -66,7 +74,7 @@ export function PropertyCard({ property, onDelete }) {
             </div>
             <div className="space-y-1">
               <p className="text-lg font-bold text-white">
-                ${property.price.toLocaleString()} / room
+                ${property.price?.toLocaleString() || '0'} / room
               </p>
               <p className="text-sm font-medium text-white/90 flex items-center gap-1">
                 <DollarSign className="h-3 w-3" />
@@ -78,6 +86,22 @@ export function PropertyCard({ property, onDelete }) {
               </p>
             </div>
           </div>
+
+          {/* Status badge */}
+          <Badge className="absolute top-2 right-2">
+            {property.status}
+          </Badge>
+
+          {/* Video indicator */}
+          {videoCount > 0 && (
+            <Badge 
+              variant="secondary"
+              className="absolute top-2 left-2 flex items-center gap-1"
+            >
+              <VideoIcon className="h-3 w-3" />
+              {videoCount} {videoCount === 1 ? 'Video' : 'Videos'}
+            </Badge>
+          )}
         </div>
       </Link>
       <CardContent className="p-4">
@@ -87,7 +111,7 @@ export function PropertyCard({ property, onDelete }) {
             <span>{property.bedrooms} beds</span>
           </div>
           <div className="flex items-center gap-1">
-            <ShowerIcon className="h-4 w-4" />
+            <ShowerHead className="h-4 w-4" />
             <span>{property.bathrooms} baths</span>
           </div>
           <div className="flex items-center gap-1">
@@ -95,13 +119,24 @@ export function PropertyCard({ property, onDelete }) {
             <span className="truncate">{property.location}</span>
           </div>
         </div>
+
+        {/* Show room sharing info if available */}
+        {property.roomSharing && (
+          <div className="mt-2 flex items-center gap-2 text-sm text-zinc-500">
+            <Users2Icon className="h-4 w-4" />
+            <span>
+              {property.currentOccupants || 0}/{property.tenantsPerRoom || property.maxOccupants || 1} occupants
+            </span>
+          </div>
+        )}
+
         <div className="mt-4 flex flex-wrap gap-2">
-          {amenities.slice(0, 3).map((amenity) => (
+          {Array.isArray(amenities) && amenities.slice(0, 3).map((amenity) => (
             <Badge key={amenity} variant="secondary" className="text-xs">
               {amenity}
             </Badge>
           ))}
-          {amenities.length > 3 && (
+          {Array.isArray(amenities) && amenities.length > 3 && (
             <Badge variant="outline" className="text-xs">
               +{amenities.length - 3} more
             </Badge>
@@ -144,3 +179,12 @@ export function PropertyCard({ property, onDelete }) {
     </Card>
   )
 }
+
+// Add the AspectRatio component if it's not imported
+const AspectRatio = ({ children, ratio = 16 / 9 }) => {
+  return (
+    <div className="relative w-full overflow-hidden" style={{ paddingBottom: `${(1 / ratio) * 100}%` }}>
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+};

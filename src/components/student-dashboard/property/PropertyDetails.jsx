@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ContactDialog } from "./ContactDialog"
 import { PropertyReviews } from "./PropertyReviews" 
-import { VideoPlayer } from "@/components/ui/video-player" // Import the video player
 import {
     HeartIcon,
     BedSingleIcon,
@@ -17,24 +16,103 @@ import {
     Share2Icon,
     Users2Icon,
     ChevronLeftIcon,
-    ChevronRightIcon,
-    PhoneIcon,
-    MailIcon,
-    PlayIcon,
-    PauseIcon,
     MessageSquareIcon,
     DollarSign,
     Star,
     Image as ImageIcon,
     Video as VideoIcon,
-    Map
+    Play,
+    Pause
 } from "lucide-react"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useSession } from "next-auth/react"
+
+// Video Player Component
+const VideoPlayer = ({ src, poster }) => {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(error => {
+          console.error("Error playing video:", error);
+          toast.error("Error playing video");
+        });
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const progress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+      setProgress(progress);
+    }
+  };
+
+  const handleLoadedData = () => {
+    setIsLoading(false);
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+    }
+  };
+
+  return (
+    <div className="relative w-full h-full group">
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        className="w-full h-full object-contain"
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedData={handleLoadedData}
+        onEnded={handleEnded}
+        onClick={togglePlayPause}
+      />
+      
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-sky-500" />
+        </div>
+      )}
+      
+      {/* Play/Pause button */}
+      <button 
+        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/50 rounded-full p-4 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={togglePlayPause}
+      >
+        {isPlaying ? (
+          <Pause className="h-8 w-8 text-white" />
+        ) : (
+          <Play className="h-8 w-8 text-white" />
+        )}
+      </button>
+      
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div 
+          className="h-full bg-sky-500" 
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+};
 
 export function PropertyDetails({ id }) {
     const { data: session } = useSession()
@@ -44,8 +122,6 @@ export function PropertyDetails({ id }) {
     const [error, setError] = useState(null)
     const [property, setProperty] = useState(null)
     const [showContact, setShowContact] = useState(false)
-    const [isPlaying, setIsPlaying] = useState(true)
-    const [slideInterval] = useState(5000)
     const [activeTab, setActiveTab] = useState("details")
     const [mapLoaded, setMapLoaded] = useState(false)
 
@@ -114,22 +190,6 @@ export function PropertyDetails({ id }) {
             loadMap()
         }
     }, [activeTab, property, mapLoaded])
-
-    useEffect(() => {
-        if (!isPlaying || !property?.media?.length) return
-
-        const timer = setInterval(() => {
-            setSelectedMedia((prev) => {
-                // Only auto-advance for images, not videos
-                const currentMediaType = property.media[prev]?.type
-                if (currentMediaType === 'video') return prev
-                
-                return (prev + 1) % property.media.length
-            })
-        }, slideInterval)
-
-        return () => clearInterval(timer)
-    }, [isPlaying, property?.media?.length, slideInterval])
 
     const handleShare = async () => {
         if (!property) return
@@ -211,7 +271,10 @@ export function PropertyDetails({ id }) {
                         <div className="relative group">
                             <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
                                 {isCurrentMediaVideo ? (
-                                    <VideoPlayer src={currentMedia.url} />
+                                    <VideoPlayer 
+                                        src={currentMedia.url} 
+                                        poster={images[0]?.url}
+                                    />
                                 ) : (
                                     <Image
                                         src={currentMedia?.url || '/placeholder-image.jpg'}
@@ -228,10 +291,7 @@ export function PropertyDetails({ id }) {
                                     {property.media?.map((media, index) => (
                                         <button
                                             key={index}
-                                            onClick={() => {
-                                                setSelectedMedia(index)
-                                                setIsPlaying(false)
-                                            }}
+                                            onClick={() => setSelectedMedia(index)}
                                             className={`relative flex-none w-20 aspect-video rounded-lg overflow-hidden transition-all
                                                 ${selectedMedia === index
                                                     ? 'ring-2 ring-sky-500 scale-95'
@@ -362,7 +422,10 @@ export function PropertyDetails({ id }) {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {videos.map((video, index) => (
                                                     <div key={index} className="aspect-video bg-black rounded-lg overflow-hidden">
-                                                        <VideoPlayer src={video.url} />
+                                                        <VideoPlayer 
+                                                            src={video.url} 
+                                                            poster={images[0]?.url}
+                                                        />
                                                     </div>
                                                 ))}
                                             </div>
@@ -467,11 +530,31 @@ export function PropertyDetails({ id }) {
                                     <div className="space-y-2">
                                         <p className="text-sm font-medium">{property.owner.name}</p>
                                         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                                            <MailIcon className="w-4 h-4" />
+                                            <MessageSquareIcon className="w-4 h-4" />
                                             {property.owner.email}
                                         </div>
                                     </div>
                                 </div>
+                                
+                                {/* Media stats */}
+                                {(videos.length > 0 || images.length > 0) && (
+                                    <>
+                                        <Separator />
+                                        <div className="space-y-3">
+                                            <h3 className="font-medium">Media</h3>
+                                            <div className="flex gap-4">
+                                                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                    <ImageIcon className="w-4 h-4" />
+                                                    {images.length} Images
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                    <VideoIcon className="w-4 h-4" />
+                                                    {videos.length} Videos
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
