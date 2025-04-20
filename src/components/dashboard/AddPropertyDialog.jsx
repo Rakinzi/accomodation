@@ -1,3 +1,5 @@
+"use client"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,12 +25,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useState, useRef, useEffect } from "react"
-import { MediaUpload } from "../MediaUpload" // Updated to MediaUpload
-import { MapSelector } from "../MapSelector" // New MapSelector component
-import { Command, CommandEmpty, CommandInput, CommandList,CommandItem } from "./Command"
+import { MediaUpload } from "../MediaUpload"
+import { Command, CommandEmpty, CommandInput, CommandList, CommandItem } from "./Command"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { X, PlusCircle } from "lucide-react"
+import { X, PlusCircle, Search, Loader2, MapPin } from "lucide-react"
 import { LoadingSpinner } from "./LoadingSpinner"
 import { toast } from "sonner"
 
@@ -72,7 +73,7 @@ const amenitiesSuggestions = [
 
 export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
   const commandRef = useRef(null)
-  const [media, setMedia] = useState([]) // Changed from images to media
+  const [media, setMedia] = useState([])
   const [amenityInput, setAmenityInput] = useState("")
   const [error, setError] = useState("")
   const [isCommandOpen, setIsCommandOpen] = useState(false)
@@ -181,6 +182,377 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
     }
   }
 
+  // Map component
+  const SimpleMapSelector = ({ value, onChange }) => {
+    const [mapInitialized, setMapInitialized] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const mapContainerRef = useRef(null);
+    const mapRef = useRef(null);
+    const markerRef = useRef(null);
+  
+    // Initialize map on component mount
+    useEffect(() => {
+      if (!mapContainerRef.current) return;
+  
+      // Dynamic loading of Leaflet
+      const loadLeaflet = async () => {
+        // Load CSS
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+  
+        // Load JS
+        if (!window.L) {
+          try {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement("script");
+              script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+              script.onload = resolve;
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          } catch (error) {
+            toast.error("Failed to load maps. Please check your connection.");
+            return;
+          }
+        }
+  
+        try {
+          // Create map if not already created
+          if (!mapRef.current) {
+            // Default view if no coordinates
+            const defaultView = [0, 0];
+            const zoom = 2;
+            
+            // Check if we have valid coordinates
+            const hasCoordinates = value && value.lat && value.lng;
+            const initialView = hasCoordinates 
+              ? [value.lat, value.lng] 
+              : defaultView;
+            const initialZoom = hasCoordinates ? 13 : zoom;
+  
+            // Initialize map
+            mapRef.current = window.L.map(mapContainerRef.current).setView(
+              initialView, 
+              initialZoom
+            );
+  
+            // Add tile layer
+            window.L.tileLayer(
+              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              {
+                attribution:
+                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+              }
+            ).addTo(mapRef.current);
+  
+            // Add initial marker if we have coordinates
+            if (hasCoordinates) {
+              markerRef.current = window.L.marker([value.lat, value.lng]).addTo(mapRef.current);
+            }
+  
+            // Add click handler
+            mapRef.current.on("click", handleMapClick);
+            
+            // Force map to render correctly
+            setTimeout(() => {
+              mapRef.current.invalidateSize();
+            }, 100);
+          }
+          
+          setMapInitialized(true);
+        } catch (error) {
+          console.error("Error initializing map:", error);
+          toast.error("There was a problem setting up the map");
+        }
+      };
+  
+      loadLeaflet();
+  
+      return () => {
+        // Clean up map on component unmount
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }, []);
+  
+    // Handle map clicks
+    const handleMapClick = async (e) => {
+      if (!mapRef.current) return;
+  
+      const { lat, lng } = e.latlng;
+  
+      try {
+        // Update or create marker
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+        } else {
+          markerRef.current = window.L.marker([lat, lng]).addTo(mapRef.current);
+        }
+  
+        // Get address
+        let address = `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`;
+        
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+            { 
+              headers: { 
+                'User-Agent': 'StudentHousing/1.0'
+              }
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.display_name) {
+              address = data.display_name;
+            }
+          }
+        } catch (error) {
+          console.error("Error getting address:", error);
+          // Continue with coordinates as fallback
+        }
+  
+        // Update location value
+        onChange({
+          lat,
+          lng,
+          address,
+        });
+  
+        // Show popup with address
+        markerRef.current.bindPopup(address).openPopup();
+      } catch (error) {
+        console.error("Error handling map click:", error);
+        toast.error("Error selecting location");
+      }
+    };
+  
+    // Get current location
+    const getCurrentLocation = () => {
+      if (!navigator.geolocation) {
+        toast.error("Location is not supported by your browser");
+        return;
+      }
+  
+      setIsGettingLocation(true);
+  
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const lat = latitude; // for consistency in naming
+            const lng = longitude;
+            
+            // Center map and add marker
+            if (mapRef.current) {
+              mapRef.current.setView([lat, lng], 13);
+              
+              if (markerRef.current) {
+                markerRef.current.setLatLng([lat, lng]);
+              } else {
+                markerRef.current = window.L.marker([lat, lng]).addTo(mapRef.current);
+              }
+              
+              // Try to get address
+              let address = `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`;
+              
+              try {
+                const response = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+                  { 
+                    headers: { 
+                      'User-Agent': 'StudentHousing/1.0'
+                    }
+                  }
+                );
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.display_name) {
+                    address = data.display_name;
+                  }
+                }
+              } catch (error) {
+                console.error("Error getting address:", error);
+                // Continue with coordinates as fallback
+              }
+              
+              // Update location value
+              onChange({
+                lat,
+                lng,
+                address,
+              });
+              
+              // Show popup with address
+              markerRef.current.bindPopup(address).openPopup();
+            }
+          } catch (error) {
+            console.error("Error getting location:", error);
+            toast.error("Could not access your location");
+          } finally {
+            setIsGettingLocation(false);
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setIsGettingLocation(false);
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              toast.error("Location permission denied");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              toast.error("Location information is unavailable");
+              break;
+            case error.TIMEOUT:
+              toast.error("Location request timed out");
+              break;
+            default:
+              toast.error("An unknown error occurred");
+              break;
+          }
+        }
+      );
+    };
+  
+    // Search for location
+    const handleSearch = async (e) => {
+      e.preventDefault();
+      if (!searchQuery.trim() || !mapRef.current) return;
+  
+      setIsSearching(true);
+  
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`,
+          { 
+            headers: { 
+              'User-Agent': 'StudentHousing/1.0'
+            }
+          }
+        );
+  
+        if (!response.ok) {
+          throw new Error("Search failed");
+        }
+  
+        const data = await response.json();
+  
+        if (data.length === 0) {
+          toast.error("No results found. Try a different search term.");
+          return;
+        }
+  
+        // Use first result
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+        const address = result.display_name;
+  
+        // Update map view
+        mapRef.current.setView([lat, lng], 13);
+  
+        // Update or create marker
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+        } else {
+          markerRef.current = window.L.marker([lat, lng]).addTo(mapRef.current);
+        }
+  
+        // Update location value
+        onChange({
+          lat,
+          lng,
+          address,
+        });
+  
+        // Show popup with address
+        markerRef.current.bindPopup(address).openPopup();
+  
+        setSearchQuery("");
+      } catch (error) {
+        console.error("Search error:", error);
+        toast.error("Failed to search location");
+      } finally {
+        setIsSearching(false);
+      }
+    };
+  
+    return (
+      <div className="space-y-4">
+        <Label>Property Location {value?.address && <span className="text-green-500">✓</span>}</Label>
+        
+        {/* Search form */}
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <Input
+            type="text"
+            placeholder="Search for a location..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1"
+          />
+          <Button 
+            type="submit" 
+            variant="secondary"
+            disabled={isSearching || !mapInitialized}
+          >
+            {isSearching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={getCurrentLocation}
+            disabled={isGettingLocation || !mapInitialized}
+          >
+            {isGettingLocation ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MapPin className="h-4 w-4" />
+            )}
+          </Button>
+        </form>
+  
+        {/* Selected location display */}
+        {value?.address && (
+          <div className="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
+            <MapPin className="h-4 w-4 mr-1 text-sky-500" />
+            <span className="truncate">{value.address}</span>
+          </div>
+        )}
+  
+        {/* Map container */}
+        <div className="relative border rounded-lg overflow-hidden" style={{ height: "400px" }}>
+          {!mapInitialized && (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+              <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+            </div>
+          )}
+          <div 
+            ref={mapContainerRef} 
+            className="h-full w-full"
+          />
+        </div>
+        
+        <p className="text-sm text-zinc-500">
+          Click on the map to set your property location, or use the search box to find an address.
+        </p>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -211,11 +583,9 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <MapSelector
+                      <SimpleMapSelector
                         value={field.value}
                         onChange={field.onChange}
-                        required={true}
-                        label="Property Location"
                       />
                       <FormMessage />
                     </FormItem>
