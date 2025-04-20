@@ -424,9 +424,11 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
       );
     };
   
-    // Search for location
+    // Search for location - FIXED to prevent form submission
     const handleSearch = async (e) => {
+      // Prevent default form submission behavior to avoid page refresh
       e.preventDefault();
+      
       if (!searchQuery.trim() || !mapRef.current) return;
   
       setIsSearching(true);
@@ -491,7 +493,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
       <div className="space-y-4">
         <Label>Property Location {value?.address && <span className="text-green-500">✓</span>}</Label>
         
-        {/* Search form */}
+        {/* Search form - Make sure to prevent default form submission */}
         <form onSubmit={handleSearch} className="flex gap-2">
           <Input
             type="text"
@@ -512,7 +514,7 @@ export function AddPropertyDialog({ open, onOpenChange, onSuccess }) {
             )}
           </Button>
           <Button
-            type="button"
+            type="button" // Explicitly set as button type to avoid form submission
             variant="outline"
             onClick={getCurrentLocation}
             disabled={isGettingLocation || !mapInitialized}
