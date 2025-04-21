@@ -378,7 +378,7 @@ export function PropertyDetails({ id }) {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm text-zinc-500">Occupancy</p>
-                                                    <p className="font-medium">{property.currentOccupants}/{property.tenantsPerRoom}</p>
+                                                    <p className="font-medium">{property.currentOccupants}/{property.tenantsPerRoom * property.bedrooms}</p>
                                                 </div>
                                             </div>
                                         </div>

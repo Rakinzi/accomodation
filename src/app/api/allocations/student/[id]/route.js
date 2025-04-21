@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
                         roomSharing: true,         // Updated from sharing
                         tenantsPerRoom: true,      // Updated from maxOccupants
                         currentOccupants: true,
-                        images: {
+                        media: {
                             select: {
                                 url: true
                             }
@@ -76,7 +76,7 @@ export async function GET(request, { params }) {
                 roomSharing: allocation.property.roomSharing,       // Updated from sharing
                 tenantsPerRoom: allocation.property.tenantsPerRoom, // Updated from maxOccupants
                 currentOccupants: allocation.property.currentOccupants,
-                images: allocation.property.images.map(img => img.url)
+                images: allocation.property.media.map(img => img.url)
             },
             student: {
                 name: allocation.user.name,
@@ -86,7 +86,7 @@ export async function GET(request, { params }) {
         
         return NextResponse.json(formattedAllocation)
     } catch (error) {
-        console.error('API Error:', error)
+        console.error('API Error:', error.stack)
         return NextResponse.json(
             { message: 'Internal server error', error: error.message },
             { status: 500 }

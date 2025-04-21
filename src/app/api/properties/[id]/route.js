@@ -25,12 +25,10 @@ export async function GET(request, { params }) {
       return NextResponse.json({ message: "Property not found" }, { status: 404 });
     }
     
-    // Now fetch the full property with all related data
     const property = await prisma.property.findUnique({
       where: { id },
       include: {
         media: true,
-        images: true,
         owner: {
           select: {
             id: true,
@@ -56,7 +54,6 @@ export async function GET(request, { params }) {
         _count: {
           select: { 
             reviews: true,
-            messages: true 
           }
         }
       }
@@ -84,6 +81,7 @@ export async function GET(request, { params }) {
       longitude: property.longitude || 0,
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
+      tenants: property.tenantsPerRoom || 1,
       // Use any media relation available - prefer media over images
       media: property.media || property.images || [],
       // Owner might be null if the relation doesn't exist

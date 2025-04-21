@@ -30,7 +30,13 @@ export function FilterBar({ onFiltersChange }) {
   const [usingCurrentLocation, setUsingCurrentLocation] = useState(false)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
   const [radius, setRadius] = useState(5) // Default radius in kilometers
-  const [priceRange, setPriceRange] = useState([0, 500])
+  const [priceRange, setPriceRange] = useState({
+    min: 0,
+    max: 500,
+  })
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(500)
+
   const [sharing, setSharing] = useState(false)
   const [gender, setGender] = useState("ANY")
   const [religion, setReligion] = useState("ANY")
@@ -89,8 +95,8 @@ export function FilterBar({ onFiltersChange }) {
   const handleApplyFilters = () => {
     onFiltersChange({
       location: location || undefined,
-      minPrice: priceRange[0] || undefined,
-      maxPrice: priceRange[1] || undefined,
+      minPrice: minPrice || undefined,
+      maxPrice: maxPrice || undefined,
       sharing: sharing || undefined,
       gender: gender !== "ANY" ? gender : undefined,
       religion: religion !== "ANY" ? religion : undefined,
@@ -162,19 +168,33 @@ export function FilterBar({ onFiltersChange }) {
           <label className="text-sm font-medium text-gray-700">
             Price Range (Monthly)
           </label>
-          <div className="pt-2">
+           <div className="pt-2">
             <Slider
-              value={priceRange}
-              onValueChange={setPriceRange}
+              value={[minPrice, maxPrice]}
               min={0}
               max={500}
               step={10}
-              className="mt-2"
+              onValueChange={(value) => {
+                if (value[0] !== undefined && value[1] !== undefined) {
+                  if (value[0] > value[1]) {
+                    if(value[0] === minPrice) {
+                      setMaxPrice(value[1])
+                    }
+                    if(value[1] === maxPrice) {
+                      setMinPrice(value[0])
+                    }
+                  }else{
+                    setMinPrice(value[0])
+                    setMaxPrice(value[1])
+                  }
+                }
+              }}
+              
             />
             <div className="flex justify-between mt-1 text-xs text-gray-500">
-              <span>{formatPrice(priceRange[0])}</span>
-              <span>{formatPrice(priceRange[1])}</span>
-            </div>
+              <span>{formatPrice(minPrice)}</span>
+              <span>{formatPrice(maxPrice)}</span>
+            </div> 
           </div>
         </div>
 

@@ -410,7 +410,7 @@ export default function PropertyDetailPage() {
                       { icon: BedSingleIcon, label: 'Bedrooms', value: property.bedrooms },
                       { icon: ShowerHead, label: 'Bathrooms', value: property.bathrooms },
                       { icon: MapPinIcon, label: 'Location', value: property.location.split(',')[0] },
-                      { icon: Users2Icon, label: 'Max Occupants', value: property.roomSharing ? `${property.currentOccupants}/${property.maxOccupants}` : '1' }
+                      { icon: Users2Icon, label: 'Max Occupants Per Room', value: property.tenantsPerRoom},
                     ].map(({ icon: Icon, label, value }) => (
                       <div key={label} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4">
                         <Icon className="h-5 w-5 text-sky-500 mb-2" />
@@ -663,7 +663,7 @@ export default function PropertyDetailPage() {
                 {property.roomSharing && (
                   <div className="flex items-center gap-3 text-sm">
                     <Users2Icon className="h-4 w-4 text-sky-500" />
-                    <span>Current Occupants: {property.currentOccupants}/{property.maxOccupants}</span>
+                    <span>Current Occupants: {property.currentOccupants}/{(property.tenantsPerRoom * property.bedrooms)}</span>
                   </div>
                 )}
               </div>

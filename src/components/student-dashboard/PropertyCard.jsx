@@ -147,7 +147,7 @@ export function PropertyCard({ property }) {
             {roomSharing && (
               <div className="flex items-center gap-1">
                 <Users2Icon className="h-4 w-4 text-zinc-500" />
-                <span>{currentOccupants}/{tenantsPerRoom} Occupants</span>
+                <span>{currentOccupants}/{tenantsPerRoom * bedrooms} Occupants</span>
               </div>
             )}
           </div>
