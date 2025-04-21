@@ -1,6 +1,7 @@
+// Updated FilterBar.jsx with location suggestions and fixed search form
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,10 +20,13 @@ import {
   StarIcon,
   MapPinIcon,
   Navigation,
-  Loader2
+  Loader2,
+  X,
+  CheckIcon
 } from "lucide-react"
 import { toast } from "sonner"
 import { getCurrentPosition, getAddressFromCoordinates } from "@/lib/locationUtils"
+import { Badge } from "@/components/ui/badge"
 
 export function FilterBar({ onFiltersChange }) {
   const [location, setLocation] = useState("")
@@ -30,17 +34,59 @@ export function FilterBar({ onFiltersChange }) {
   const [usingCurrentLocation, setUsingCurrentLocation] = useState(false)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
   const [radius, setRadius] = useState(5) // Default radius in kilometers
-  const [priceRange, setPriceRange] = useState({
-    min: 0,
-    max: 500,
-  })
-  const [minPrice, setMinPrice] = useState(0)
-  const [maxPrice, setMaxPrice] = useState(500)
-
+  const [maxPrice, setMaxPrice] = useState(500) // Single price value (not a range)
   const [sharing, setSharing] = useState(false)
   const [gender, setGender] = useState("ANY")
   const [religion, setReligion] = useState("ANY")
   const [minRating, setMinRating] = useState("0")
+  
+  // Location suggestions
+  const [locationSuggestions, setLocationSuggestions] = useState([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionsRef = useRef(null)
+
+  // Hide suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Get location suggestions
+  useEffect(() => {
+    const getLocationSuggestions = async () => {
+      if (!location || location.length < 3 || usingCurrentLocation) {
+        setLocationSuggestions([])
+        return
+      }
+      
+      setIsLoadingSuggestions(true)
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=5`
+        )
+        
+        if (!response.ok) throw new Error("Failed to get suggestions")
+        
+        const data = await response.json()
+        setLocationSuggestions(data)
+        setShowSuggestions(data.length > 0)
+      } catch (error) {
+        console.error("Error getting location suggestions:", error)
+      } finally {
+        setIsLoadingSuggestions(false)
+      }
+    }
+    
+    const timer = setTimeout(getLocationSuggestions, 400)
+    return () => clearTimeout(timer)
+  }, [location, usingCurrentLocation])
 
   // Get user's location when component mounts
   useEffect(() => {
@@ -78,6 +124,13 @@ export function FilterBar({ onFiltersChange }) {
       setIsGettingLocation(false)
     }
   }
+  
+  // Handle selecting a location suggestion
+  const handleSelectSuggestion = (suggestion) => {
+    setLocation(suggestion.display_name)
+    setLocationSuggestions([])
+    setShowSuggestions(false)
+  }
 
   const toggleLocationUsage = () => {
     const newValue = !usingCurrentLocation
@@ -90,13 +143,18 @@ export function FilterBar({ onFiltersChange }) {
     }
   }
 
+  // Fixed search form submission
+  const handleSearch = (e) => {
+    e.preventDefault() // Prevent page refresh
+    handleApplyFilters()
+  }
+
   const formatPrice = (value) => `$${value.toLocaleString()}`
 
   const handleApplyFilters = () => {
     onFiltersChange({
       location: location || undefined,
-      minPrice: minPrice || undefined,
-      maxPrice: maxPrice || undefined,
+      maxPrice: maxPrice || undefined, // Only send maxPrice
       sharing: sharing || undefined,
       gender: gender !== "ANY" ? gender : undefined,
       religion: religion !== "ANY" ? religion : undefined,
@@ -116,15 +174,60 @@ export function FilterBar({ onFiltersChange }) {
         {/* Location Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Location</label>
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder={usingCurrentLocation ? "Using your location" : "Search city or area"} 
-              className="pl-9 bg-white"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              disabled={usingCurrentLocation}
-            />
+          <div className="relative" ref={suggestionsRef}>
+            <form onSubmit={handleSearch}>
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input 
+                  placeholder={usingCurrentLocation ? "Using your location" : "Search city or area"} 
+                  className="pl-9 bg-white"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  onFocus={() => !usingCurrentLocation && location.length >= 3 && setShowSuggestions(true)}
+                  disabled={usingCurrentLocation}
+                />
+                {location && !usingCurrentLocation && (
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    onClick={() => setLocation("")}
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </button>
+                )}
+              </div>
+              <button type="submit" className="sr-only">Search</button>
+            </form>
+            
+            {/* Location suggestions dropdown */}
+            {showSuggestions && !usingCurrentLocation && (
+              <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border max-h-60 overflow-auto">
+                {isLoadingSuggestions ? (
+                  <div className="p-2 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                  </div>
+                ) : locationSuggestions.length > 0 ? (
+                  <ul>
+                    {locationSuggestions.map((suggestion, index) => (
+                      <li key={index}>
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-start gap-2"
+                          onClick={() => handleSelectSuggestion(suggestion)}
+                        >
+                          <MapPinIcon className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm line-clamp-2">{suggestion.display_name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="p-2 text-sm text-gray-500 text-center">
+                    No locations found
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center justify-between">
@@ -163,38 +266,24 @@ export function FilterBar({ onFiltersChange }) {
           )}
         </div>
 
-        {/* Price Range */}
+        {/* Price Range - Now a single slider */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">
-            Price Range (Monthly)
-          </label>
-           <div className="pt-2">
+          <label className="text-sm font-medium text-gray-700">Maximum Price</label>
+          <div className="pt-2">
             <Slider
-              value={[minPrice, maxPrice]}
+              value={[maxPrice]}
               min={0}
-              max={500}
-              step={10}
-              onValueChange={(value) => {
-                if (value[0] !== undefined && value[1] !== undefined) {
-                  if (value[0] > value[1]) {
-                    if(value[0] === minPrice) {
-                      setMaxPrice(value[1])
-                    }
-                    if(value[1] === maxPrice) {
-                      setMinPrice(value[0])
-                    }
-                  }else{
-                    setMinPrice(value[0])
-                    setMaxPrice(value[1])
-                  }
-                }
-              }}
-              
+              max={1000}
+              step={50}
+              onValueChange={(value) => setMaxPrice(value[0])}
             />
             <div className="flex justify-between mt-1 text-xs text-gray-500">
-              <span>{formatPrice(minPrice)}</span>
+              <span>$0</span>
               <span>{formatPrice(maxPrice)}</span>
-            </div> 
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Show properties up to {formatPrice(maxPrice)}
+            </p>
           </div>
         </div>
 
@@ -262,7 +351,44 @@ export function FilterBar({ onFiltersChange }) {
         />
       </div>
 
-      <div className="flex justify-end mt-6">
+      <div className="flex items-center justify-between mt-6">
+        {/* Applied filters */}
+        <div className="flex flex-wrap gap-2">
+          {maxPrice < 1000 && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <span>Max ${maxPrice}</span>
+              <button 
+                className="ml-1" 
+                onClick={() => setMaxPrice(1000)}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {gender !== "ANY" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <span>{gender}</span>
+              <button 
+                className="ml-1" 
+                onClick={() => setGender("ANY")}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {religion !== "ANY" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <span>{religion}</span>
+              <button 
+                className="ml-1" 
+                onClick={() => setReligion("ANY")}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+
         <Button 
           className="bg-sky-500 hover:bg-sky-600"
           onClick={handleApplyFilters}

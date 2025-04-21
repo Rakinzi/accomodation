@@ -81,9 +81,8 @@ export async function GET(request, { params }) {
       longitude: property.longitude || 0,
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
-      tenants: property.tenantsPerRoom || 1,
-      // Use any media relation available - prefer media over images
-      media: property.media || property.images || [],
+      // Include both fields for compatibility
+      media: property.media || [], 
       // Owner might be null if the relation doesn't exist
       owner: property.owner || { 
         id: "unknown", 
@@ -110,6 +109,7 @@ export async function GET(request, { params }) {
     }, { status: 500 });
   }
 }
+
 export async function PATCH(request, { params }) {
   try {
     const session = await getServerSession(authOptions)
@@ -122,17 +122,31 @@ export async function PATCH(request, { params }) {
       )
     }
 
+    // Get the request body
     const body = await request.json()
+    
+    // Extract and rename fields as needed while removing fields not in schema
     const {
       media = [],
-      amenities = [],
-      roomSharing = false,
+      sharing, // This field needs to be removed/renamed
+      maxOccupants, // This field needs to be removed/renamed
       gender = 'ANY',
       religion = 'ANY',
-      maxOccupants = 1,
       deposit = 0,
-      ...propertyData
+      price,
+      location,
+      bedrooms,
+      bathrooms,
+      description,
+      amenities,
+      status,
+      ...restBody // Any other fields in the body
     } = body
+
+    // Handle amenities formatting
+    const formattedAmenities = typeof amenities === 'string' 
+      ? amenities 
+      : JSON.stringify(amenities || [])
 
     // Verify ownership
     const existingProperty = await prisma.property.findUnique({
@@ -157,63 +171,77 @@ export async function PATCH(request, { params }) {
       )
     }
 
-    if (parseInt(maxOccupants) < (existingProperty.currentOccupants || 0)) {
+    // Set tenantsPerRoom from maxOccupants or default
+    const tenantsPerRoom = parseInt(maxOccupants || "1")
+
+    // Validate tenantsPerRoom against current occupants
+    if (tenantsPerRoom < (existingProperty.currentOccupants || 0)) {
       return NextResponse.json(
-        { message: "Cannot reduce max occupants below current occupants" },
+        { message: "Cannot reduce maximum occupants below current occupants" },
         { status: 400 }
       )
     }
 
-    const updatedProperty = await prisma.property.update({
-      where: { id },
-      data: {
-        ...propertyData,
-        price: parseFloat(propertyData.price || 0),
-        deposit: parseFloat(deposit || 0),
-        bedrooms: parseInt(propertyData.bedrooms || 1),
-        bathrooms: parseInt(propertyData.bathrooms || 1),
-        amenities: JSON.stringify(amenities),
-        roomSharing: Boolean(roomSharing),
-        gender,
-        religion,
-        maxOccupants: parseInt(maxOccupants || 1),
-        // Update media if provided
-        ...(media.length > 0 && {
+    // Update the property with transaction to handle media properly
+    const updatedProperty = await prisma.$transaction(async (prismaClient) => {
+      // First, delete all existing media for this property
+      await prismaClient.media.deleteMany({
+        where: { propertyId: id }
+      });
+
+      // Then update the property with new data and create new media entries
+      return prismaClient.property.update({
+        where: { id },
+        data: {
+          // Include only the fields that exist in the schema
+          price: parseFloat(price || 0),
+          location: location || "",
+          bedrooms: parseInt(bedrooms || 1),
+          bathrooms: parseInt(bathrooms || 1),
+          description: description || "",
+          amenities: formattedAmenities,
+          status: status || "AVAILABLE",
+          deposit: parseFloat(deposit || 0),
+          // Map form fields to schema fields
+          roomSharing: Boolean(sharing), // Use the 'sharing' value for 'roomSharing'
+          tenantsPerRoom: tenantsPerRoom,
+          gender,
+          religion,
+          // Create new media entries
           media: {
-            deleteMany: {},
             create: media.map(item => ({
               url: item.url,
-              type: item.type || 'image'
+              type: item.type || 'image' // Default to 'image' for backward compatibility
             }))
           }
-        })
-      },
-      include: {
-        media: true,
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
         },
-        occupants: {
-          where: {
-            status: 'ACTIVE'
+        include: {
+          media: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
           },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                gender: true,
-                religion: true
+          occupants: {
+            where: {
+              status: 'ACTIVE'
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  gender: true,
+                  religion: true
+                }
               }
             }
           }
         }
-      }
-    })
+      });
+    });
 
     return NextResponse.json({
       message: "Property updated successfully",
@@ -222,6 +250,55 @@ export async function PATCH(request, { params }) {
 
   } catch (error) {
     console.error('[PROPERTY_UPDATE]', error)
+    return NextResponse.json(
+      { message: "Internal server error", error: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions)
+    const { id } = params
+
+    if (!session || session.user.userType !== 'LANDLORD') {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    // Verify ownership
+    const property = await prisma.property.findUnique({
+      where: { id },
+      select: { ownerId: true }
+    })
+
+    if (!property) {
+      return NextResponse.json(
+        { message: "Property not found" },
+        { status: 404 }
+      )
+    }
+
+    if (property.ownerId !== session.user.id) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    // Delete property (this will cascade to delete all related media)
+    await prisma.property.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({
+      message: "Property deleted successfully"
+    })
+  } catch (error) {
+    console.error('[PROPERTY_DELETE]', error)
     return NextResponse.json(
       { message: "Internal server error", error: error.message },
       { status: 500 }

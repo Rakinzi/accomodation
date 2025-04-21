@@ -208,7 +208,7 @@ export default function PropertiesPage() {
                                         <p className="font-medium text-lg">${property.price.toLocaleString()}</p>
                                         <div className="flex items-center gap-1 text-sm text-zinc-500">
                                             <Users2Icon className="w-4 h-4" />
-                                            {property.currentOccupants}/{property.tenantsPerRoom}
+                                            {property.currentOccupants}/{property.tenantsPerRoom * property.bedrooms}
                                         </div>
                                     </div>
                                 </div>

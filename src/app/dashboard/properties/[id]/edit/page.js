@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
-import { ImageUpload } from "@/components/dashboard/ImageUpload"
+import { MediaUpload } from "@/components/MediaUpload"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
@@ -59,7 +59,7 @@ export default function EditPropertyPage() {
   const { data: session } = useSession()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [images, setImages] = useState([])
+  const [media, setMedia] = useState([])
   const [sharing, setSharing] = useState(false)
 
   const form = useForm({
@@ -87,24 +87,42 @@ export default function EditPropertyPage() {
         if (!response.ok) throw new Error('Failed to fetch property')
         const data = await response.json()
 
+        // Parse amenities if it's a string
+        const parsedAmenities = typeof data.amenities === 'string' 
+          ? JSON.parse(data.amenities) 
+          : data.amenities || []
+
         form.reset({
           price: data.price.toString(),
-          deposit: data.deposit.toString() || "",
+          deposit: data.deposit?.toString() || "0",
           location: data.location,
           bedrooms: data.bedrooms.toString(),
           bathrooms: data.bathrooms.toString(),
           description: data.description,
-          amenities: JSON.parse(data.amenities),
-          sharing: data.sharing,
+          amenities: parsedAmenities,
+          sharing: data.roomSharing || false, // Updated from sharing to roomSharing
           gender: data.gender || "ANY",
           religion: data.religion || "ANY",
-          maxOccupants: data.maxOccupants?.toString() || "1",
+          maxOccupants: data.tenantsPerRoom?.toString() || "1", // Updated from maxOccupants to tenantsPerRoom
           status: data.status || "AVAILABLE"
         })
 
-        setSharing(data.sharing)
-        setImages(data.images)
+        setSharing(data.roomSharing || false) // Updated from sharing to roomSharing
+        
+        // Handle media (both images and videos)
+        const mediaItems = data.media || []
+        
+        // If old format property has images but no media
+        if ((!mediaItems || mediaItems.length === 0) && data.images && data.images.length > 0) {
+          setMedia(data.images.map(img => ({
+            url: img.url,
+            type: 'image'
+          })))
+        } else {
+          setMedia(mediaItems)
+        }
       } catch (error) {
+        console.error('Error fetching property:', error)
         toast.error("Failed to load property")
         router.push('/dashboard')
       } finally {
@@ -117,26 +135,38 @@ export default function EditPropertyPage() {
 
   const onSubmit = async (data) => {
     try {
+      if (media.length === 0) {
+        toast.error("Please upload at least one image")
+        return
+      }
+
+      if (!media.some(item => item.type === 'image' || !item.type)) {
+        toast.error("Please upload at least one image")
+        return
+      }
+
       setSubmitting(true)
       const response = await fetch(`/api/properties/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
-          images: images.map(image => ({ url: image.url })),
-          sharing: data.sharing,
-          gender: data.gender,
-          religion: data.religion,
-          maxOccupants: data.maxOccupants
+          media: media, // Send all media items (images and videos)
+          roomSharing: data.sharing, // Map sharing to roomSharing for API
+          tenantsPerRoom: parseInt(data.maxOccupants) // Map maxOccupants to tenantsPerRoom for API
         }),
       })
 
-      if (!response.ok) throw new Error()
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to update property')
+      }
 
       toast.success("Property updated successfully")
       router.push(`/dashboard/properties/${id}`)
     } catch (error) {
-      toast.error("Failed to update property")
+      console.error('Failed to update property:', error)
+      toast.error(error.message || "Failed to update property")
     } finally {
       setSubmitting(false)
     }
@@ -169,14 +199,17 @@ export default function EditPropertyPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 p-6">
               <div className="grid gap-8">
-                {/* Image Upload */}
+                {/* Media Upload - Updated to handle both images and videos */}
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold">Property Images</h2>
-                  <ImageUpload
-                    value={images}
-                    onChange={setImages}
-                    maxFiles={5}
+                  <h2 className="text-xl font-semibold">Property Media</h2>
+                  <MediaUpload
+                    value={media}
+                    onChange={setMedia}
+                    maxFiles={8}
                   />
+                  <p className="text-xs text-zinc-500">
+                    Upload up to 8 files. Add at least one image. Videos can be up to 50MB each.
+                  </p>
                 </div>
 
                 {/* Basic Details */}
@@ -317,7 +350,7 @@ export default function EditPropertyPage() {
                           name="maxOccupants"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Maximum Occupants</FormLabel>
+                              <FormLabel>Maximum Occupants Per Room</FormLabel>
                               <FormControl>
                                 <Input type="number" min="1" {...field} />
                               </FormControl>
