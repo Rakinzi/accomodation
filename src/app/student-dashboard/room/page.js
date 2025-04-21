@@ -39,6 +39,7 @@ export default function Room() {
     const [isLeaving, setIsLeaving] = useState(false)
 
     useEffect(() => {
+        document.title = "Room | Student Accommodation"
         if (status === "authenticated" && session?.user?.id) {
             fetchAllocationDetails()
         }

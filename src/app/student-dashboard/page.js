@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { FilterBar } from "@/components/student-dashboard/FilterBar"
 import { PropertyGrid } from "@/components/student-dashboard/PropertyGrid"
 import { LoadingSpinner } from "@/components/dashboard/LoadingSpinner"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function StudentDashboard() {
   const [filters, setFilters] = useState({})
@@ -14,6 +14,10 @@ export default function StudentDashboard() {
     onUnauthenticated() {
       redirect('/auth/login')
     },
+  })
+
+  useEffect(()=> {
+    document.title = "Dashboard | Student Accommodation"
   })
 
   if (status === "loading") {

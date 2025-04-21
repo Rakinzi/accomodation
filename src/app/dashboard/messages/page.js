@@ -37,6 +37,7 @@ export default function MessagesPage() {
   }
 
   useEffect(() => {
+    document.title = "Messages | Landlord Accommodation"
     if (selectedStudent?.messages?.length > 0) {
       scrollToBottom()
     }

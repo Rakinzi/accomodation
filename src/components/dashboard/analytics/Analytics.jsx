@@ -32,6 +32,7 @@ export function Analytics() {
   const [currentDateTime, setCurrentDateTime] = useState("")
 
   useEffect(() => {
+    document.title = "Analytics | Landlord Accommodation"
     fetchAnalytics()
     // Update time every second
     const timer = setInterval(() => {

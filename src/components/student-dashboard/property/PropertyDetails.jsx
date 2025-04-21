@@ -126,6 +126,7 @@ export function PropertyDetails({ id }) {
     const [mapLoaded, setMapLoaded] = useState(false)
 
     useEffect(() => {
+        document.title = "Property | Student Accommodation"
         const fetchProperty = async () => {
             try {
                 const response = await fetch(`/api/properties/${id}`)

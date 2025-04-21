@@ -97,6 +97,7 @@ export default function MessagesPage() {
 
 
   useEffect(() => {
+    document.title = "Messages | Student Accommodation"
     const fetchMessages = async () => {
       try {
         const response = await fetch("/api/conversations")

@@ -81,6 +81,7 @@ export default function EditPropertyPage() {
   })
 
   useEffect(() => {
+    document.title = "Edit Property | Landlord Accommodation"
     const fetchProperty = async () => {
       try {
         const response = await fetch(`/api/properties/${id}`)

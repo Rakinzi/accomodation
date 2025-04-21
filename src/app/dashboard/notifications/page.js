@@ -54,6 +54,7 @@ export default function AdminNotifications() {
 
   // Fetch notifications every 5 seconds
   useEffect(() => {
+    document.title = "Notifications | Landlord Accommodation"
     if (status === "authenticated" && (session?.user?.userType === "ADMIN" || session?.user?.userType === "LANDLORD")) {
       fetchNotifications();
       fetchProperties();

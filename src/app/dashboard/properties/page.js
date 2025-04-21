@@ -59,6 +59,7 @@ export default function PropertiesPage() {
     }
 
     useEffect(() => {
+        document.title = "Properties | Landlord Accomodation"
         const fetchData = async () => {
             try {
                 // Fetch all properties owned by the user
