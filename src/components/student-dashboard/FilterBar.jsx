@@ -1,4 +1,3 @@
-// Updated FilterBar.jsx with location suggestions and fixed search form
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -299,7 +298,6 @@ export function FilterBar({ onFiltersChange }) {
               <SelectItem value="ANY">Any Gender</SelectItem>
               <SelectItem value="MALE">Male Only</SelectItem>
               <SelectItem value="FEMALE">Female Only</SelectItem>
-              <SelectItem value="BOTH">Both Male and Female</SelectItem>
             </SelectContent>
           </Select>
         </div>

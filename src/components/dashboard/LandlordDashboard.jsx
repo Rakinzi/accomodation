@@ -52,7 +52,7 @@ const formSchema = z.object({
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
   roomSharing: z.boolean().default(false),
   tenantsPerRoom: z.string().min(1, "Number of tenants per room is required"),
-  gender: z.enum(["MALE", "FEMALE", "ANY", "BOTH"]).default("ANY"),
+  gender: z.enum(["MALE", "FEMALE", "ANY"]).default("ANY"),
   religion: z.enum(["CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "ANY", "OTHER"]).default("ANY")
 })
 
@@ -895,11 +895,41 @@ export function LandlordDashboard() {
                                 <SelectItem value="ANY">Any Gender</SelectItem>
                                 <SelectItem value="MALE">Male Only</SelectItem>
                                 <SelectItem value="FEMALE">Female Only</SelectItem>
-                                <SelectItem value="BOTH">Both Male and Female</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormDescription>
                               Preferred gender of tenants
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Religion Preference - Always visible regardless of sharing */}
+                      <FormField
+                        control={form.control}
+                        name="religion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Religion Preference</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select religion preference" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="ANY">Any Religion</SelectItem>
+                                <SelectItem value="CHRISTIAN">Christian</SelectItem>
+                                <SelectItem value="MUSLIM">Muslim</SelectItem>
+                                <SelectItem value="HINDU">Hindu</SelectItem>
+                                <SelectItem value="BUDDHIST">Buddhist</SelectItem>
+                                <SelectItem value="JEWISH">Jewish</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Preferred religion of tenants
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -936,59 +966,27 @@ export function LandlordDashboard() {
                         />
 
                         {roomSharing && (
-                          <>
-                            <FormField
-                              control={form.control}
-                              name="tenantsPerRoom"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Tenants per Room</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      min="2"
-                                      max="4"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormDescription>
-                                    Maximum number of tenants that can share a room
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="religion"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Religion Preference</FormLabel>
-                                  <Select value={field.value} onValueChange={field.onChange}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select religion preference" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="ANY">Any Religion</SelectItem>
-                                      <SelectItem value="CHRISTIAN">Christian</SelectItem>
-                                      <SelectItem value="MUSLIM">Muslim</SelectItem>
-                                      <SelectItem value="HINDU">Hindu</SelectItem>
-                                      <SelectItem value="BUDDHIST">Buddhist</SelectItem>
-                                      <SelectItem value="JEWISH">Jewish</SelectItem>
-                                      <SelectItem value="OTHER">Other</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormDescription>
-                                    Preferred religion of tenants
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </>
+                          <FormField
+                            control={form.control}
+                            name="tenantsPerRoom"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tenants per Room</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min="2"
+                                    max="4"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Maximum number of tenants that can share a room
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
                       </div>
                     </div>

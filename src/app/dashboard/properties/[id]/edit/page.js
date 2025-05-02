@@ -41,7 +41,7 @@ const formSchema = z.object({
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
   sharing: z.boolean().default(false),
   deposit: z.string().min(1, "Deposit amount is required"),
-  gender: z.enum(["ANY", "MALE", "FEMALE", "BOTH"]).default("ANY"),
+  gender: z.enum(["ANY", "MALE", "FEMALE"]).default("ANY"),
   religion: z.enum(["ANY", "CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "OTHER"]).default("ANY"),
   maxOccupants: z.string().optional().transform(val => val || "1"),
   status: z.enum(["AVAILABLE", "OCCUPIED", "MAINTENANCE"]).default("AVAILABLE")
@@ -362,7 +362,6 @@ export default function EditPropertyPage() {
                                 <SelectItem value="ANY">Any</SelectItem>
                                 <SelectItem value="MALE">Male</SelectItem>
                                 <SelectItem value="FEMALE">Female</SelectItem>
-                                <SelectItem value="BOTH">Both</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -370,50 +369,49 @@ export default function EditPropertyPage() {
                         )}
                       />
 
-                      {/* Only show these fields if sharing is enabled */}
-                      {sharing && (
-                        <>
-                          <FormField
-                            control={form.control}
-                            name="maxOccupants"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Maximum Occupants Per Room</FormLabel>
-                                <FormControl>
-                                  <Input type="number" min="1" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      {/* Religion preference - always visible */}
+                      <FormField
+                        control={form.control}
+                        name="religion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Preferred Religion</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="ANY">Any</SelectItem>
+                                <SelectItem value="CHRISTIAN">Christian</SelectItem>
+                                <SelectItem value="MUSLIM">Muslim</SelectItem>
+                                <SelectItem value="HINDU">Hindu</SelectItem>
+                                <SelectItem value="BUDDHIST">Buddhist</SelectItem>
+                                <SelectItem value="JEWISH">Jewish</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                          <FormField
-                            control={form.control}
-                            name="religion"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Preferred Religion</FormLabel>
-                                <Select value={field.value} onValueChange={field.onChange}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="ANY">Any</SelectItem>
-                                    <SelectItem value="CHRISTIAN">Christian</SelectItem>
-                                    <SelectItem value="MUSLIM">Muslim</SelectItem>
-                                    <SelectItem value="HINDU">Hindu</SelectItem>
-                                    <SelectItem value="BUDDHIST">Buddhist</SelectItem>
-                                    <SelectItem value="JEWISH">Jewish</SelectItem>
-                                    <SelectItem value="OTHER">Other</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </>
+                      {/* Only show max occupants field if sharing is enabled */}
+                      {sharing && (
+                        <FormField
+                          control={form.control}
+                          name="maxOccupants"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Maximum Occupants Per Room</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="1" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
                     </div>
                   </div>
