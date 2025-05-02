@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Form,
   FormControl,
@@ -51,7 +52,7 @@ const formSchema = z.object({
   amenities: z.array(z.string()).min(1, "At least one amenity is required"),
   roomSharing: z.boolean().default(false),
   tenantsPerRoom: z.string().min(1, "Number of tenants per room is required"),
-  gender: z.enum(["MALE", "FEMALE", "ANY"]).default("ANY"),
+  gender: z.enum(["MALE", "FEMALE", "ANY", "BOTH"]).default("ANY"),
   religion: z.enum(["CHRISTIAN", "MUSLIM", "HINDU", "BUDDHIST", "JEWISH", "ANY", "OTHER"]).default("ANY")
 })
 
@@ -201,160 +202,387 @@ export function LandlordDashboard() {
   };
 
   // Leaflet map selector component
- // Updated LeafletMapSelector with higher z-index for suggestions
-function LeafletMapSelector({ value, onChange }) {
-  const containerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
-  const searchInputRef = useRef(null);
-  const [isMapReady, setIsMapReady] = useState(leafletLoaded);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  
-  // Location suggestions
-  const [locationSuggestions, setLocationSuggestions] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const suggestionsRef = useRef(null);
-  
-  // Hide suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
-        setShowSuggestions(false);
-      }
-    };
+  function LeafletMapSelector({ value, onChange }) {
+    const containerRef = useRef(null);
+    const mapInstanceRef = useRef(null);
+    const markerRef = useRef(null);
+    const searchInputRef = useRef(null);
+    const [isMapReady, setIsMapReady] = useState(leafletLoaded);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
     
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-  
-  // Get location suggestions
-  useEffect(() => {
-    const getLocationSuggestions = async () => {
-      if (!searchTerm || searchTerm.length < 3) {
-        setLocationSuggestions([]);
+    // Location suggestions
+    const [locationSuggestions, setLocationSuggestions] = useState([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const suggestionsRef = useRef(null);
+    
+    // Hide suggestions when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (e) => {
+        if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+          setShowSuggestions(false);
+        }
+      };
+      
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+    
+    // Get location suggestions
+    useEffect(() => {
+      const getLocationSuggestions = async () => {
+        if (!searchTerm || searchTerm.length < 3) {
+          setLocationSuggestions([]);
+          return;
+        }
+        
+        setIsLoadingSuggestions(true);
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5`,
+            { headers: { 'User-Agent': 'PropertyApp/1.0' } }
+          );
+          
+          if (!response.ok) throw new Error("Failed to get suggestions");
+          
+          const data = await response.json();
+          setLocationSuggestions(data);
+          setShowSuggestions(data.length > 0);
+        } catch (error) {
+          console.error("Error getting location suggestions:", error);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      };
+      
+      const timer = setTimeout(getLocationSuggestions, 400);
+      return () => clearTimeout(timer);
+    }, [searchTerm]);
+    
+    // Load Leaflet JS and CSS
+    useEffect(() => {
+      if (leafletLoaded) {
+        setIsMapReady(true);
         return;
       }
       
-      setIsLoadingSuggestions(true);
+      const loadLeaflet = async () => {
+        // Add Leaflet CSS if needed
+        if (!document.querySelector('link[href*="leaflet.css"]')) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(link);
+        }
+        
+        // Load Leaflet JS if needed
+        if (!window.L) {
+          await new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            script.onload = () => {
+              leafletLoaded = true;
+              setIsMapReady(true);
+              resolve();
+            };
+            document.head.appendChild(script);
+          });
+        } else {
+          leafletLoaded = true;
+          setIsMapReady(true);
+        }
+      };
+      
+      loadLeaflet();
+    }, []);
+    
+    // Initialize map once Leaflet is loaded and the container is ready
+    useEffect(() => {
+      if (!isMapReady || !containerRef.current || mapInstanceRef.current) return;
+      
+      // Clear any existing map instances
+      if (containerRef.current._leaflet_id) {
+        containerRef.current._leaflet_id = null;
+      }
+      
+      const setupMap = () => {
+        try {
+          console.log("Setting up map once...");
+          
+          // Default coordinates or provided ones
+          const startPos = [value?.lat || 0, value?.lng || 0];
+          const hasCoords = value?.lat !== 0 || value?.lng !== 0;
+          
+          // Create map
+          const map = window.L.map(containerRef.current).setView(
+            startPos,
+            hasCoords ? 13 : 2
+          );
+          
+          mapInstanceRef.current = map;
+          
+          // Add tile layer
+          window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          }).addTo(map);
+          
+          // Add marker if coordinates exist
+          if (hasCoords) {
+            const marker = window.L.marker(startPos).addTo(map);
+            markerRef.current = marker;
+            
+            if (value.address) {
+              marker.bindPopup(value.address).openPopup();
+            }
+          }
+          
+          // Add click handler
+          map.on('click', async (e) => {
+            const { lat, lng } = e.latlng;
+            
+            // Create or update marker
+            if (markerRef.current) {
+              markerRef.current.setLatLng([lat, lng]);
+            } else {
+              markerRef.current = window.L.marker([lat, lng]).addTo(map);
+            }
+            
+            // Get address
+            let address = `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`;
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+                { headers: { 'User-Agent': 'PropertyApp/1.0' } }
+              );
+              if (response.ok) {
+                const data = await response.json();
+                if (data.display_name) {
+                  address = data.display_name;
+                }
+              }
+            } catch (error) {
+              console.log("Address lookup failed, using coordinates");
+            }
+            
+            // Update form
+            onChange({ lat, lng, address });
+            
+            // Show popup
+            if (markerRef.current) {
+              markerRef.current.bindPopup(address).openPopup();
+            }
+          });
+          
+          // Force resize
+          setTimeout(() => {
+            map.invalidateSize();
+          }, 100);
+          
+          // Hide loading indicator
+          const loadingIndicator = document.getElementById('map-loading-indicator');
+          if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+          }
+          
+          // Resize handler for map to ensure it displays correctly
+          const resizeObserver = new ResizeObserver(() => {
+            if (mapInstanceRef.current) {
+              setTimeout(() => {
+                mapInstanceRef.current.invalidateSize();
+              }, 100);
+            }
+          });
+          
+          if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+          }
+          
+          return () => {
+            if (containerRef.current) {
+              resizeObserver.unobserve(containerRef.current);
+            }
+          };
+        } catch (err) {
+          console.error("Error setting up map:", err);
+        }
+      };
+      
+      // Delay to ensure the container is properly rendered
+      const timeoutId = setTimeout(setupMap, 500);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }, [isMapReady, value, onChange]);
+    
+    // Update map when the tab becomes active
+    useEffect(() => {
+      if (activeTab === "addProperty" && mapInstanceRef.current) {
+        setTimeout(() => {
+          mapInstanceRef.current.invalidateSize();
+        }, 100);
+      }
+    }, [activeTab]);
+    
+    // Update marker if value changes
+    useEffect(() => {
+      if (!mapInstanceRef.current || !isMapReady) return;
+      
+      // Skip if no valid coordinates
+      if (!value?.lat || !value?.lng) return;
+      
+      const coords = [value.lat, value.lng];
+      
+      // Center map
+      mapInstanceRef.current.setView(coords, 13);
+      
+      // Update or create marker
+      if (markerRef.current) {
+        markerRef.current.setLatLng(coords);
+      } else {
+        markerRef.current = window.L.marker(coords).addTo(mapInstanceRef.current);
+      }
+      
+      // Show popup with address
+      if (value.address && markerRef.current) {
+        markerRef.current.bindPopup(value.address).openPopup();
+      }
+    }, [isMapReady, value]);
+    
+    // Handle selecting a suggestion
+    const handleSelectSuggestion = (suggestion) => {
+      try {
+        const lat = parseFloat(suggestion.lat);
+        const lng = parseFloat(suggestion.lon);
+        const address = suggestion.display_name;
+        
+        // Center map
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([lat, lng], 13);
+        }
+        
+        // Create or update marker
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+        } else if (mapInstanceRef.current) {
+          markerRef.current = window.L.marker([lat, lng]).addTo(mapInstanceRef.current);
+        }
+        
+        // Show popup
+        if (markerRef.current) {
+          markerRef.current.bindPopup(address).openPopup();
+        }
+        
+        // Update form
+        onChange({ lat, lng, address });
+        
+        // Clear search and hide suggestions
+        setSearchTerm("");
+        if (searchInputRef.current) {
+          searchInputRef.current.value = '';
+        }
+        setShowSuggestions(false);
+      } catch (error) {
+        console.error("Error selecting suggestion:", error);
+        toast.error("Failed to select location");
+      }
+    };
+    
+    // Handle search form submit - WITH preventDefault
+    const handleSearch = async (e) => {
+      e.preventDefault(); // Prevent page refresh
+      
+      if (!isMapReady || !mapInstanceRef.current) {
+        toast.error("Map is not ready yet");
+        return;
+      }
+      
+      if (!searchTerm.trim()) return;
+      
+      setIsSearching(true);
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`,
           { headers: { 'User-Agent': 'PropertyApp/1.0' } }
         );
         
-        if (!response.ok) throw new Error("Failed to get suggestions");
+        if (!response.ok) throw new Error("Search failed");
         
         const data = await response.json();
-        setLocationSuggestions(data);
-        setShowSuggestions(data.length > 0);
-      } catch (error) {
-        console.error("Error getting location suggestions:", error);
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    };
-    
-    const timer = setTimeout(getLocationSuggestions, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-  
-  // Load Leaflet JS and CSS
-  useEffect(() => {
-    if (leafletLoaded) {
-      setIsMapReady(true);
-      return;
-    }
-    
-    const loadLeaflet = async () => {
-      // Add Leaflet CSS if needed
-      if (!document.querySelector('link[href*="leaflet.css"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-      }
-      
-      // Load Leaflet JS if needed
-      if (!window.L) {
-        await new Promise((resolve) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-          script.onload = () => {
-            leafletLoaded = true;
-            setIsMapReady(true);
-            resolve();
-          };
-          document.head.appendChild(script);
-        });
-      } else {
-        leafletLoaded = true;
-        setIsMapReady(true);
-      }
-    };
-    
-    loadLeaflet();
-  }, []);
-  
-  // Initialize map once Leaflet is loaded and the container is ready
-  useEffect(() => {
-    if (!isMapReady || !containerRef.current || mapInstanceRef.current) return;
-    
-    // Clear any existing map instances
-    if (containerRef.current._leaflet_id) {
-      containerRef.current._leaflet_id = null;
-    }
-    
-    const setupMap = () => {
-      try {
-        console.log("Setting up map once...");
         
-        // Default coordinates or provided ones
-        const startPos = [value?.lat || 0, value?.lng || 0];
-        const hasCoords = value?.lat !== 0 || value?.lng !== 0;
-        
-        // Create map
-        const map = window.L.map(containerRef.current).setView(
-          startPos,
-          hasCoords ? 13 : 2
-        );
-        
-        mapInstanceRef.current = map;
-        
-        // Add tile layer
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(map);
-        
-        // Add marker if coordinates exist
-        if (hasCoords) {
-          const marker = window.L.marker(startPos).addTo(map);
-          markerRef.current = marker;
-          
-          if (value.address) {
-            marker.bindPopup(value.address).openPopup();
-          }
+        if (data.length === 0) {
+          toast.error("No locations found");
+          return;
         }
         
-        // Add click handler
-        map.on('click', async (e) => {
-          const { lat, lng } = e.latlng;
+        // Use first result
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+        const address = result.display_name;
+        
+        // Center map
+        mapInstanceRef.current.setView([lat, lng], 13);
+        
+        // Create or update marker
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+        } else {
+          markerRef.current = window.L.marker([lat, lng]).addTo(mapInstanceRef.current);
+        }
+        
+        // Show popup
+        markerRef.current.bindPopup(address).openPopup();
+        
+        // Update form
+        onChange({ lat, lng, address });
+        
+        // Clear search
+        setSearchTerm("");
+        setShowSuggestions(false);
+      } catch (error) {
+        console.error("Search error:", error);
+        toast.error("Failed to search location");
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    
+    // Get user's current location
+    const getUserLocation = () => {
+      if (!isMapReady || !mapInstanceRef.current) {
+        toast.error("Map is not ready yet");
+        return;
+      }
+      
+      if (!navigator.geolocation) {
+        toast.error("Geolocation is not supported by your browser");
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Center map
+          mapInstanceRef.current.setView([latitude, longitude], 13);
           
           // Create or update marker
           if (markerRef.current) {
-            markerRef.current.setLatLng([lat, lng]);
+            markerRef.current.setLatLng([latitude, longitude]);
           } else {
-            markerRef.current = window.L.marker([lat, lng]).addTo(map);
+            markerRef.current = window.L.marker([latitude, longitude]).addTo(mapInstanceRef.current);
           }
           
           // Get address
-          let address = `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}`;
+          let address = `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
           try {
             const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
               { headers: { 'User-Agent': 'PropertyApp/1.0' } }
             );
+            
             if (response.ok) {
               const data = await response.json();
               if (data.display_name) {
@@ -362,370 +590,142 @@ function LeafletMapSelector({ value, onChange }) {
               }
             }
           } catch (error) {
-            console.log("Address lookup failed, using coordinates");
+            console.error("Error getting address:", error);
           }
           
           // Update form
-          onChange({ lat, lng, address });
+          onChange({ lat: latitude, lng: longitude, address });
           
           // Show popup
-          if (markerRef.current) {
-            markerRef.current.bindPopup(address).openPopup();
+          markerRef.current.bindPopup(address).openPopup();
+        },
+        (error) => {
+          let errorMessage = "An unknown error occurred";
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Location permission denied";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Location information is unavailable";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Location request timed out";
+              break;
           }
-        });
-        
-        // Force resize
-        setTimeout(() => {
-          map.invalidateSize();
-        }, 100);
-        
-        // Hide loading indicator
-        const loadingIndicator = document.getElementById('map-loading-indicator');
-        if (loadingIndicator) {
-          loadingIndicator.style.display = 'none';
-        }
-        
-        // Resize handler for map to ensure it displays correctly
-        const resizeObserver = new ResizeObserver(() => {
-          if (mapInstanceRef.current) {
-            setTimeout(() => {
-              mapInstanceRef.current.invalidateSize();
-            }, 100);
-          }
-        });
-        
-        if (containerRef.current) {
-          resizeObserver.observe(containerRef.current);
-        }
-        
-        return () => {
-          if (containerRef.current) {
-            resizeObserver.unobserve(containerRef.current);
-          }
-        };
-      } catch (err) {
-        console.error("Error setting up map:", err);
-      }
-    };
-    
-    // Delay to ensure the container is properly rendered
-    const timeoutId = setTimeout(setupMap, 500);
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [isMapReady, value, onChange]);
-  
-  // Update map when the tab becomes active
-  useEffect(() => {
-    if (activeTab === "addProperty" && mapInstanceRef.current) {
-      setTimeout(() => {
-        mapInstanceRef.current.invalidateSize();
-      }, 100);
-    }
-  }, [activeTab]);
-  
-  // Update marker if value changes
-  useEffect(() => {
-    if (!mapInstanceRef.current || !isMapReady) return;
-    
-    // Skip if no valid coordinates
-    if (!value?.lat || !value?.lng) return;
-    
-    const coords = [value.lat, value.lng];
-    
-    // Center map
-    mapInstanceRef.current.setView(coords, 13);
-    
-    // Update or create marker
-    if (markerRef.current) {
-      markerRef.current.setLatLng(coords);
-    } else {
-      markerRef.current = window.L.marker(coords).addTo(mapInstanceRef.current);
-    }
-    
-    // Show popup with address
-    if (value.address && markerRef.current) {
-      markerRef.current.bindPopup(value.address).openPopup();
-    }
-  }, [isMapReady, value]);
-  
-  // Handle selecting a suggestion
-  const handleSelectSuggestion = (suggestion) => {
-    try {
-      const lat = parseFloat(suggestion.lat);
-      const lng = parseFloat(suggestion.lon);
-      const address = suggestion.display_name;
-      
-      // Center map
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([lat, lng], 13);
-      }
-      
-      // Create or update marker
-      if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
-      } else if (mapInstanceRef.current) {
-        markerRef.current = window.L.marker([lat, lng]).addTo(mapInstanceRef.current);
-      }
-      
-      // Show popup
-      if (markerRef.current) {
-        markerRef.current.bindPopup(address).openPopup();
-      }
-      
-      // Update form
-      onChange({ lat, lng, address });
-      
-      // Clear search and hide suggestions
-      setSearchTerm("");
-      if (searchInputRef.current) {
-        searchInputRef.current.value = '';
-      }
-      setShowSuggestions(false);
-    } catch (error) {
-      console.error("Error selecting suggestion:", error);
-      toast.error("Failed to select location");
-    }
-  };
-  
-  // Handle search form submit - WITH preventDefault
-  const handleSearch = async (e) => {
-    e.preventDefault(); // Prevent page refresh
-    
-    if (!isMapReady || !mapInstanceRef.current) {
-      toast.error("Map is not ready yet");
-      return;
-    }
-    
-    if (!searchTerm.trim()) return;
-    
-    setIsSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`,
-        { headers: { 'User-Agent': 'PropertyApp/1.0' } }
-      );
-      
-      if (!response.ok) throw new Error("Search failed");
-      
-      const data = await response.json();
-      
-      if (data.length === 0) {
-        toast.error("No locations found");
-        return;
-      }
-      
-      // Use first result
-      const result = data[0];
-      const lat = parseFloat(result.lat);
-      const lng = parseFloat(result.lon);
-      const address = result.display_name;
-      
-      // Center map
-      mapInstanceRef.current.setView([lat, lng], 13);
-      
-      // Create or update marker
-      if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
-      } else {
-        markerRef.current = window.L.marker([lat, lng]).addTo(mapInstanceRef.current);
-      }
-      
-      // Show popup
-      markerRef.current.bindPopup(address).openPopup();
-      
-      // Update form
-      onChange({ lat, lng, address });
-      
-      // Clear search
-      setSearchTerm("");
-      setShowSuggestions(false);
-    } catch (error) {
-      console.error("Search error:", error);
-      toast.error("Failed to search location");
-    } finally {
-      setIsSearching(false);
-    }
-  };
-  
-  // Get user's current location
-  const getUserLocation = () => {
-    if (!isMapReady || !mapInstanceRef.current) {
-      toast.error("Map is not ready yet");
-      return;
-    }
-    
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return;
-    }
-    
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        // Center map
-        mapInstanceRef.current.setView([latitude, longitude], 13);
-        
-        // Create or update marker
-        if (markerRef.current) {
-          markerRef.current.setLatLng([latitude, longitude]);
-        } else {
-          markerRef.current = window.L.marker([latitude, longitude]).addTo(mapInstanceRef.current);
-        }
-        
-        // Get address
-        let address = `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`;
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-            { headers: { 'User-Agent': 'PropertyApp/1.0' } }
-          );
           
-          if (response.ok) {
-            const data = await response.json();
-            if (data.display_name) {
-              address = data.display_name;
-            }
-          }
-        } catch (error) {
-          console.error("Error getting address:", error);
+          toast.error(errorMessage);
         }
+      );
+    };
+    
+    return (
+      <div className="space-y-4">
+        <Label>Property Location {value?.address && <span className="text-green-500">✓</span>}</Label>
         
-        // Update form
-        onChange({ lat: latitude, lng: longitude, address });
+        {/* Search form with suggestions - Now in a container div with positioning */}
+        <div className="relative" ref={suggestionsRef} style={{ position: 'relative', zIndex: 9999 }}>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search for a location..."
+              className="flex-1"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => searchTerm.length >= 3 && setShowSuggestions(true)}
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={isSearching}
+            >
+              {isSearching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={getUserLocation}
+              aria-label="Use my location"
+            >
+              <MapPin className="h-4 w-4" />
+            </Button>
+          </form>
+          
+          {/* Location suggestions dropdown with improved positioning and z-index */}
+          {showSuggestions && (
+            <div className="absolute w-full mt-1 bg-white shadow-lg rounded-md border max-h-60 overflow-auto" 
+                 style={{ 
+                   position: 'absolute', 
+                   top: '100%', 
+                   left: 0, 
+                   zIndex: 9999,
+                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+                 }}>
+              {isLoadingSuggestions ? (
+                <div className="p-2 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              ) : locationSuggestions.length > 0 ? (
+                <ul>
+                  {locationSuggestions.map((suggestion, index) => (
+                    <li key={index}>
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-start gap-2"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                      >
+                        <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm line-clamp-2">{suggestion.display_name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-2 text-sm text-gray-500 text-center">
+                  No locations found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
-        // Show popup
-        markerRef.current.bindPopup(address).openPopup();
-      },
-      (error) => {
-        let errorMessage = "An unknown error occurred";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Location permission denied";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information is unavailable";
-            break;
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out";
-            break;
-        }
-        
-        toast.error(errorMessage);
-      }
-    );
-  };
-  
-  return (
-    <div className="space-y-4">
-      <Label>Property Location {value?.address && <span className="text-green-500">✓</span>}</Label>
-      
-      {/* Search form with suggestions - Now in a container div with positioning */}
-      <div className="relative" ref={suggestionsRef} style={{ position: 'relative', zIndex: 9999 }}>
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <Input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search for a location..."
-            className="flex-1"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => searchTerm.length >= 3 && setShowSuggestions(true)}
-          />
-          <Button
-            type="submit"
-            variant="secondary"
-            disabled={isSearching}
-          >
-            {isSearching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={getUserLocation}
-            aria-label="Use my location"
-          >
-            <MapPin className="h-4 w-4" />
-          </Button>
-        </form>
-        
-        {/* Location suggestions dropdown with improved positioning and z-index */}
-        {showSuggestions && (
-          <div className="absolute w-full mt-1 bg-white shadow-lg rounded-md border max-h-60 overflow-auto" 
-               style={{ 
-                 position: 'absolute', 
-                 top: '100%', 
-                 left: 0, 
-                 zIndex: 9999,
-                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-               }}>
-            {isLoadingSuggestions ? (
-              <div className="p-2 flex items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-              </div>
-            ) : locationSuggestions.length > 0 ? (
-              <ul>
-                {locationSuggestions.map((suggestion, index) => (
-                  <li key={index}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-start gap-2"
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                    >
-                      <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm line-clamp-2">{suggestion.display_name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-2 text-sm text-gray-500 text-center">
-                No locations found
-              </div>
-            )}
+        {/* Selected location display */}
+        {value?.address && (
+          <div className="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
+            <MapPin className="h-4 w-4 mr-1 text-sky-500" />
+            <span className="truncate">{value.address}</span>
           </div>
         )}
-      </div>
-      
-      {/* Selected location display */}
-      {value?.address && (
-        <div className="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
-          <MapPin className="h-4 w-4 mr-1 text-sky-500" />
-          <span className="truncate">{value.address}</span>
-        </div>
-      )}
-      
-      {/* Map container - Now with a lower z-index than suggestions */}
-      <div className="relative border rounded-lg overflow-hidden" style={{ height: "400px", position: 'relative', zIndex: 1 }}>
-        {/* Loading indicator */}
-        <div
-          id="map-loading-indicator"
-          className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 z-10"
-          style={{ display: isMapReady ? 'none' : 'flex' }}
-        >
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-sky-500" />
+        
+        {/* Map container - Now with a lower z-index than suggestions */}
+        <div className="relative border rounded-lg overflow-hidden" style={{ height: "400px", position: 'relative', zIndex: 1 }}>
+          {/* Loading indicator */}
+          <div
+            id="map-loading-indicator"
+            className="absolute inset-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 z-10"
+            style={{ display: isMapReady ? 'none' : 'flex' }}
+          >
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-sky-500" />
+          </div>
+          
+          {/* Map container */}
+          <div
+            ref={containerRef}
+            className="h-full w-full"
+            style={{ visibility: isMapReady ? 'visible' : 'hidden' }}
+          />
         </div>
         
-        {/* Map container */}
-        <div
-          ref={containerRef}
-          className="h-full w-full"
-          style={{ visibility: isMapReady ? 'visible' : 'hidden' }}
-        />
+        <p className="text-sm text-zinc-500">
+          Click on the map to set your property location, or use the search box to find an address.
+        </p>
       </div>
-      
-      <p className="text-sm text-zinc-500">
-        Click on the map to set your property location, or use the search box to find an address.
-      </p>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50/50 to-white dark:from-zinc-900/50 dark:to-zinc-900">
@@ -877,6 +877,34 @@ function LeafletMapSelector({ value, onChange }) {
                           </FormItem>
                         )}
                       />
+
+                      {/* Gender Preference - Always visible regardless of sharing */}
+                      <FormField
+                        control={form.control}
+                        name="gender"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Gender Preference</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select gender preference" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="ANY">Any Gender</SelectItem>
+                                <SelectItem value="MALE">Male Only</SelectItem>
+                                <SelectItem value="FEMALE">Female Only</SelectItem>
+                                <SelectItem value="BOTH">Both Male and Female</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Preferred gender of tenants
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
 
                     {/* Sharing Preferences */}
@@ -908,27 +936,59 @@ function LeafletMapSelector({ value, onChange }) {
                         />
 
                         {roomSharing && (
-                          <FormField
-                            control={form.control}
-                            name="tenantsPerRoom"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Tenants per Room</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="2"
-                                    max="4"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormDescription>
-                                  Maximum number of tenants that can share a room
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                          <>
+                            <FormField
+                              control={form.control}
+                              name="tenantsPerRoom"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Tenants per Room</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="2"
+                                      max="4"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Maximum number of tenants that can share a room
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="religion"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Religion Preference</FormLabel>
+                                  <Select value={field.value} onValueChange={field.onChange}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select religion preference" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="ANY">Any Religion</SelectItem>
+                                      <SelectItem value="CHRISTIAN">Christian</SelectItem>
+                                      <SelectItem value="MUSLIM">Muslim</SelectItem>
+                                      <SelectItem value="HINDU">Hindu</SelectItem>
+                                      <SelectItem value="BUDDHIST">Buddhist</SelectItem>
+                                      <SelectItem value="JEWISH">Jewish</SelectItem>
+                                      <SelectItem value="OTHER">Other</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    Preferred religion of tenants
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
                         )}
                       </div>
                     </div>

@@ -118,7 +118,15 @@ export async function GET(request) {
       status: 'AVAILABLE',
       ...(ownerId && { ownerId }),
       ...(roomSharing !== null && { roomSharing: roomSharing === 'true' }),
-      ...(gender && { gender }),
+      ...((gender && gender !== 'BOTH') ? { gender: gender === 'ANY' ? undefined : gender } : {}),
+      // Handle BOTH gender case
+      ...(gender === 'BOTH' ? {
+        OR: [
+          { gender: 'MALE' },
+          { gender: 'FEMALE' },
+          { gender: 'BOTH' }
+        ]
+      } : {}),
       ...(religion && { religion }),
       ...((maxPrice || minPrice) && {
         price: {
