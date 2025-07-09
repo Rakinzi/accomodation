@@ -1,3 +1,4 @@
+// Updated student-dashboard/page.js
 "use client"
 
 import { useSession } from "next-auth/react"
@@ -28,11 +29,14 @@ export default function StudentDashboard() {
     redirect('/dashboard')
   }
 
-
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <FilterBar onFiltersChange={setFilters} />
-      <PropertyGrid filters={filters} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50">
+      <div className="container mx-auto px-4 py-4">
+        <div className="space-y-6">
+          <FilterBar onFiltersChange={setFilters} />
+          <PropertyGrid filters={filters} />
+        </div>
+      </div>
     </div>
   )
 }
