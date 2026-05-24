@@ -624,7 +624,7 @@ export function LandlordDashboard() {
         
         {/* Search form with suggestions - Now in a container div with positioning */}
         <div className="relative" ref={suggestionsRef} style={{ position: 'relative', zIndex: 9999 }}>
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="flex gap-2">
             <Input
               ref={searchInputRef}
               type="text"
@@ -633,11 +633,18 @@ export function LandlordDashboard() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchTerm.length >= 3 && setShowSuggestions(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch(e);
+                }
+              }}
             />
             <Button
-              type="submit"
+              type="button"
               variant="secondary"
               disabled={isSearching}
+              onClick={handleSearch}
             >
               {isSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -653,7 +660,7 @@ export function LandlordDashboard() {
             >
               <MapPin className="h-4 w-4" />
             </Button>
-          </form>
+          </div>
           
           {/* Location suggestions dropdown with improved positioning and z-index */}
           {showSuggestions && (

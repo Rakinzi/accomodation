@@ -890,8 +890,7 @@ export function PropertyDetails({ id }) {
       <ContactDialog 
         open={contactDialogOpen} 
         onOpenChange={setContactDialogOpen}
-        propertyId={id}
-        landlordName={property.landlord?.name || 'Landlord'}
+        property={property}
       />
     </div>
   )
